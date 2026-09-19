@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consulta CNAE / NBS / cClassTrib — IBS/CBS</title>
+<style>
+:root{--blue:#1a4b8c;--blue-light:#2563b8;--blue-pale:#e8f0fb;--green:#166534;--green-bg:#dcfce7;--orange:#92400e;--orange-bg:#fef3c7;--gray:#4b5563;--border:#d1d5db;--red:#b91c1c;--red-bg:#fee2e2;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1f2937;min-height:100vh;}
+
+/* ═══════════════ LOGIN ═══════════════ */
+#loginOverlay{position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#0f2a5e 0%,#1a4b8c 60%,#2563b8 100%);display:flex;align-items:center;justify-content:center;padding:20px;}
+#loginOverlay.hidden{display:none;}
+.login-box{background:#fff;border-radius:18px;padding:40px 36px 32px;width:100%;max-width:420px;box-shadow:0 24px 64px rgba(0,0,0,.4);text-align:center;animation:popIn .3s ease;}
+@keyframes popIn{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}
+.login-logo{font-size:2.8rem;margin-bottom:8px;}
+.login-title{font-size:1.2rem;font-weight:800;color:#1a4b8c;margin-bottom:4px;}
+.login-sub{font-size:.8rem;color:#6b7280;margin-bottom:28px;line-height:1.5;}
+.login-group{text-align:left;margin-bottom:16px;}
+.login-group label{display:block;font-size:.82rem;font-weight:700;color:#374151;margin-bottom:6px;}
+.login-group input{width:100%;padding:12px 14px;border:2px solid #d1d5db;border-radius:9px;font-size:.97rem;outline:none;transition:border-color .2s;background:#fafafa;}
+.login-group input:focus{border-color:#2563b8;background:#fff;}
+.btn-login{width:100%;padding:13px;background:linear-gradient(135deg,#1a4b8c,#2563b8);color:#fff;border:none;border-radius:9px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:6px;transition:opacity .2s;}
+.btn-login:hover{opacity:.88;}
+.login-error{background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:.84rem;margin-bottom:14px;display:none;text-align:left;}
+.login-error.show{display:block;}
+.login-info{font-size:.74rem;color:#9ca3af;margin-top:18px;border-top:1px solid #f3f4f6;padding-top:14px;line-height:1.6;}
+.admin-toggle{display:inline-block;margin-top:10px;font-size:.74rem;color:#2563b8;cursor:pointer;text-decoration:underline;}
+
+/* ═══════════════ ADMIN CSV PANEL ═══════════════ */
+#adminPanel{display:none;margin-top:18px;border-top:1px solid #e5e7eb;padding-top:18px;text-align:left;}
+#adminPanel.open{display:block;}
+.admin-panel-title{font-size:.85rem;font-weight:700;color:#374151;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.upload-area{border:2px dashed #d1d5db;border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:#fafafa;}
+.upload-area:hover{border-color:#2563b8;background:#e8f0fb;}
+.upload-area p{font-size:.82rem;color:#6b7280;}
+#csvFileInput{display:none;}
+.upload-result{font-size:.8rem;color:#166534;background:#dcfce7;border:1px solid #86efac;border-radius:7px;padding:8px 12px;margin-top:10px;display:none;}
+.upload-result.show{display:block;}
+.upload-result.err{color:#b91c1c;background:#fee2e2;border-color:#fca5a5;}
+.admin-pass-row{display:flex;gap:8px;margin-bottom:10px;}
+.admin-pass-row input{flex:1;padding:9px 12px;border:1.5px solid #d1d5db;border-radius:7px;font-size:.88rem;outline:none;}
+.admin-pass-row input:focus{border-color:#2563b8;}
+.btn-admin-confirm{padding:9px 16px;background:#1a4b8c;color:#fff;border:none;border-radius:7px;font-size:.82rem;font-weight:700;cursor:pointer;white-space:nowrap;}
+.csv-hint{font-size:.73rem;color:#9ca3af;margin-top:8px;font-family:monospace;line-height:1.6;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px;}
+
+/* ═══════════════ USER BAR ═══════════════ */
+.user-bar{display:none;position:fixed;top:12px;right:16px;z-index:999;background:rgba(255,255,255,.15);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.25);border-radius:20px;padding:5px 14px 5px 10px;align-items:center;gap:10px;font-size:.8rem;color:#fff;}
+.user-bar.visible{display:flex;}
+.user-bar .avatar{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:.82rem;font-weight:700;}
+.user-bar .uname{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.user-bar .timer{color:rgba(255,255,255,.7);font-size:.72rem;}
+.user-bar .btn-logout{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:12px;padding:2px 10px;font-size:.73rem;cursor:pointer;}
+.user-bar .btn-logout:hover{background:rgba(255,255,255,.35);}
+.session-warn{display:none;position:fixed;bottom:0;left:0;right:0;background:#fffbeb;border-top:1px solid #fde68a;padding:7px 20px;font-size:.78rem;color:#92400e;z-index:998;text-align:center;}
+.session-warn.visible{display:block;}
+
+/* ═══════════════ MAIN APP ═══════════════ */
+header{background:linear-gradient(135deg,var(--blue) 0%,var(--blue-light) 100%);color:#fff;padding:20px 32px;display:flex;align-items:center;gap:16px;}
+header .icon{font-size:2rem;}
+header h1{font-size:1.35rem;font-weight:700;line-height:1.2;}
+header p{font-size:.82rem;opacity:.85;margin-top:3px;}
+.container{max-width:960px;margin:0 auto;padding:28px 20px 48px;}
+.search-card{background:#fff;border-radius:12px;padding:28px;box-shadow:0 2px 8px rgba(0,0,0,.08);margin-bottom:24px;}
+.search-card h2{font-size:1.05rem;color:var(--blue);margin-bottom:18px;font-weight:600;}
+.tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.tab-btn{padding:8px 18px;border-radius:20px;border:2px solid var(--border);background:#fff;cursor:pointer;font-size:.88rem;font-weight:600;color:var(--gray);transition:all .2s;}
+.tab-btn.active{background:var(--blue);border-color:var(--blue);color:#fff;}
+.tab-btn:hover:not(.active){border-color:var(--blue-light);color:var(--blue-light);}
+.input-row{display:flex;gap:12px;}
+.input-wrap{flex:1;position:relative;}
+.input-wrap input{width:100%;padding:11px 16px;border:2px solid var(--border);border-radius:8px;font-size:1rem;outline:none;transition:border-color .2s;}
+.input-wrap input:focus{border-color:var(--blue-light);}
+.input-wrap input::placeholder{color:#9ca3af;}
+.btn-search{padding:11px 28px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:.95rem;font-weight:700;cursor:pointer;white-space:nowrap;}
+.btn-search:hover{background:var(--blue-light);}
+.hint{font-size:.78rem;color:#9ca3af;margin-top:8px;}
+.suggestions{position:absolute;top:100%;left:0;right:0;background:#fff;border:2px solid var(--blue-light);border-top:none;border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;z-index:100;display:none;}
+.suggestions.open{display:block;}
+.suggestion-item{padding:9px 14px;cursor:pointer;font-size:.88rem;border-bottom:1px solid #f0f0f0;}
+.suggestion-item:hover{background:var(--blue-pale);}
+.suggestion-item span{color:var(--blue);font-weight:600;margin-right:6px;}
+.result-section{display:none;}
+.result-section.show{display:block;}
+.result-header{background:var(--blue-pale);border-left:4px solid var(--blue);border-radius:8px;padding:16px 20px;margin-bottom:20px;}
+.result-header .lbl{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--gray);margin-bottom:3px;}
+.result-header .item-code{font-size:1.3rem;font-weight:800;color:var(--blue);}
+.result-header .item-desc{font-size:.9rem;color:#374151;margin-top:4px;line-height:1.4;}
+.result-header .cnae-tag{display:inline-block;background:var(--blue);color:#fff;border-radius:4px;padding:2px 8px;font-size:.78rem;font-weight:700;margin-top:8px;}
+.section-title{font-size:.9rem;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.badge{background:var(--blue);color:#fff;border-radius:10px;padding:1px 8px;font-size:.75rem;font-weight:700;}
+.nbs-grid{display:flex;flex-direction:column;gap:10px;margin-bottom:28px;}
+.nbs-card{background:#fff;border-radius:10px;border:1px solid var(--border);padding:14px 18px;box-shadow:0 1px 3px rgba(0,0,0,.05);display:grid;grid-template-columns:auto 1fr;gap:8px 16px;align-items:start;}
+.nbs-code{font-size:.88rem;font-weight:800;color:var(--blue-light);background:var(--blue-pale);padding:3px 8px;border-radius:5px;white-space:nowrap;grid-row:1/3;}
+.nbs-desc{font-size:.88rem;color:#374151;line-height:1.4;}
+.nbs-meta{display:flex;flex-wrap:wrap;gap:6px;}
+.meta-tag{font-size:.73rem;padding:2px 7px;border-radius:4px;font-weight:600;}
+.meta-classtrib{background:var(--green-bg);color:var(--green);}
+.meta-indop{background:#e0e7ff;color:#3730a3;}
+.meta-local{background:var(--orange-bg);color:var(--orange);}
+.meta-ps{background:#f3e8ff;color:#6b21a8;}
+.extra-ctrib-section{margin-top:4px;}
+.extra-card{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:.85rem;}
+.extra-card .ec-code{font-weight:800;color:#92400e;margin-right:8px;}
+.no-result{background:var(--red-bg);border:1px solid #fca5a5;border-radius:8px;padding:20px;text-align:center;color:var(--red);display:none;}
+.no-result.show{display:block;}
+.multi-result{display:none;}
+.multi-result.show{display:block;}
+.multi-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;cursor:pointer;transition:border-color .2s,box-shadow .2s;}
+.multi-card:hover{border-color:var(--blue-light);box-shadow:0 2px 8px rgba(26,75,140,.1);}
+.multi-card .mc-code{font-size:1rem;font-weight:800;color:var(--blue);}
+.multi-card .mc-desc{font-size:.85rem;color:var(--gray);margin-top:3px;line-height:1.3;}
+.multi-card .mc-cnae{font-size:.78rem;color:#6b7280;margin-top:5px;}
+.back-btn{display:inline-flex;align-items:center;gap:6px;background:none;border:1px solid var(--border);border-radius:6px;padding:7px 14px;cursor:pointer;font-size:.83rem;color:var(--gray);margin-bottom:16px;transition:all .2s;}
+.back-btn:hover{border-color:var(--blue);color:var(--blue);}
+footer{text-align:center;color:#9ca3af;font-size:.78rem;margin-top:40px;}
+@media(max-width:600px){.input-row{flex-direction:column;}.nbs-card{grid-template-columns:1fr;}.nbs-code{grid-row:auto;}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN OVERLAY -->
+<div id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo">📘</div>
+    <div class="login-title">Consulta Tributária IBS/CBS</div>
+    <div class="login-sub">Acesso exclusivo para membros da comunidade.<br>Digite o e-mail usado na sua compra.</div>
+    <div class="login-error" id="loginError"></div>
+    <div class="login-group">
+      <label>E-mail de acesso</label>
+      <input type="email" id="loginEmail" placeholder="seuemail@exemplo.com" autocomplete="email" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn-login" onclick="doLogin()">Entrar →</button>
+    <div class="login-info">
+      Seu e-mail é validado contra a lista de alunos.<br>
+      Apenas membros com compra confirmada têm acesso.<br><br>
+      <strong>É proibido o compartilhamento deste acesso ou conteúdo sem autorização.</strong><br>
+      Todos os direitos reservados à Verçosa Treinamentos © 2026.
+    </div>
+    <span class="admin-toggle" onclick="toggleAdmin()">🔧 Área do administrador</span>
+
+    <!-- ADMIN CSV UPLOAD PANEL -->
+    <div id="adminPanel">
+      <div class="admin-panel-title">🔒 Atualizar lista de alunos (CSV)</div>
+      <div class="admin-pass-row">
+        <input type="password" id="adminPass" placeholder="Senha de administrador" onkeydown="if(event.key==='Enter')confirmAdmin()">
+        <button class="btn-admin-confirm" onclick="confirmAdmin()">Confirmar</button>
+      </div>
+      <div class="upload-area" onclick="document.getElementById('csvFileInput').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
+        <div style="font-size:1.8rem;margin-bottom:6px;">📂</div>
+        <p><strong>Clique ou arraste</strong> o CSV da plataforma aqui</p>
+        <p style="margin-top:4px;font-size:.75rem;">Colunas esperadas: Name, Email, Access Type, Added On, Class</p>
+      </div>
+      <input type="file" id="csvFileInput" accept=".csv" onchange="handleCSV(this.files[0])">
+      <div class="csv-hint">Formato: Name,Email,Progress %,Class,Access Type,Added On,Added By</div>
+      <div class="upload-result" id="uploadResult"></div>
+    </div>
+  </div>
+</div>
+
+<!-- USER BAR -->
+<div class="user-bar" id="userBar">
+  <div class="avatar" id="userAvatar"></div>
+  <span class="uname" id="userNameLabel"></span>
+  <span class="timer" id="sessionTimer"></span>
+  <button class="btn-logout" onclick="doLogout()">Sair</button>
+</div>
+<div class="session-warn" id="sessionWarn">⏳ Sua sessão expira em breve. Faça uma ação para continuar.</div>
+
+<header>
+  <div class="icon">🔍</div>
+  <div style="flex:1">
+    <h1>Consulta CNAE / Código de Serviço → NBS / cClassTrib</h1>
+    <p>Correlação IBS/CBS — Reforma Tributária (LC 116 × Anexo VIII)</p>
+  </div>
+  <button onclick="doLogout()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.35);color:#fff;border-radius:20px;padding:7px 18px;font-size:.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:background .2s;" onmouseover="this.style.background='rgba(255,255,255,0.28)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+    🚪 Sair
+  </button>
+</header>
+
+<div class="container">
+  <div class="search-card">
+    <h2>Pesquisar</h2>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="setMode('item')">Código de Serviço (LC 116)</button>
+      <button class="tab-btn" onclick="setMode('cnae')">CNAE</button>
+      <button class="tab-btn" onclick="setMode('desc')">Descrição do Serviço</button>
+    </div>
+    <div class="input-row">
+      <div class="input-wrap">
+        <input type="text" id="searchInput" placeholder="Ex: 6201-5/00 ou 1.01 ou desenvolvimento de sistemas" autocomplete="off" oninput="onInput()" onkeydown="onKey(event)">
+        <div class="suggestions" id="suggBox"></div>
+      </div>
+      <button class="btn-search" onclick="doSearch()">Buscar</button>
+    </div>
+    <div class="hint" id="hintText">Digite o código do item LC 116 (ex: 1.01, 7.02, 17.01…)</div>
+  </div>
+
+  <div class="multi-result" id="multiResult">
+    <div class="section-title">Selecione o item de serviço</div>
+    <div id="multiCards"></div>
+  </div>
+  <div class="no-result" id="noResult">Nenhum resultado encontrado. Tente outro código ou descrição.</div>
+  <div class="result-section" id="resultSection">
+    <button class="back-btn" onclick="clearResult()">← Nova pesquisa</button>
+    <div class="result-header" id="resultHeader"></div>
+    <div class="section-title" id="nbsTitle"></div>
+    <div class="nbs-grid" id="nbsGrid"></div>
+    <div class="extra-ctrib-section" id="extraCtribSection"></div>
+  </div>
+
+  <footer>Fonte: Anexo VIII – Correlação Item NBS/IndOpC/ClassTrib IBS-CBS (v1.00.00) × CNAE 2.1 × LC 116/2003<br><strong>É proibido o compartilhamento deste conteúdo sem autorização. Todos os direitos reservados à Verçosa Treinamentos © 2026.</strong></footer>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════
+// CONFIGURAÇÕES — EDITE AQUI
+// ════════════════════════════════════════════════════
+const ADMIN_PASSWORD_HASH = "14af0ecedd30ee9b99319c36c17eeb1947d603cad30b4aaa5900b934796d0270"; // hash SHA-256 da senha de admin (não guardamos a senha em texto puro)
+const SESSION_MS      = 60 * 60 * 1000; // duração da sessão: 1 hora
+const WARN_MS         = 5  * 60 * 1000; // aviso 5 min antes de expirar
+const STORAGE_KEY     = "cnae_alunos";  // chave localStorage para lista de alunos
+
+// ════════════════════════════════════════════════════
+// BASE DE ALUNOS (carregada do CSV ou do padrão abaixo)
+// ════════════════════════════════════════════════════
+const ALUNOS_PADRAO = {"paulamouracontadora@gmail.com": {"nome": "Paula Christiane Mascarenhas De Moura", "turma": "25.1", "tipo": "Purchase", "data": "26/03/2026"}, "romaine.rccontadoresassociados@gmail.com": {"nome": "Romaine Caline Barbosa Dos Santos Vieira", "turma": "25.1", "tipo": "Purchase", "data": "23/03/2026"}, "bizzogabriela95@gmail.com": {"nome": "Gabriela Da Silva Bizzo Prado", "turma": "25.1", "tipo": "Purchase", "data": "24/03/2026"}, "santosadrielli52@gmail.com": {"nome": "Adrielli Santos", "turma": "25.1", "tipo": "Manual", "data": "13/03/2026"}, "bespecontabilidade@gmail.com": {"nome": "Emmanuel De Oliveira E Silva", "turma": "25.1", "tipo": "Purchase", "data": "24/03/2026"}, "contadoradasaude@outlook.com": {"nome": "Patrícia Silva Melo", "turma": "25.1", "tipo": "Manual", "data": "06/03/2026"}, "bdassessoriacontabil@gmail.com": {"nome": "Bdassessoriacontabil", "turma": "25.1", "tipo": "Manual", "data": "13/03/2026"}, "equipe.atarginoadv@gmail.com": {"nome": "Andressa Targino Carvalho", "turma": "25.1", "tipo": "Purchase", "data": "26/11/2025"}, "matosassessoriacontabil2020@gmail.com": {"nome": "Jozemara Holanda", "turma": "25.1", "tipo": "Manual", "data": "07/01/2026"}, "professoramorim67@gmail.com": {"nome": "Ricardo Amorim", "turma": "25.1", "tipo": "Manual", "data": "02/12/2025"}, "alynethpereira@gmail.com": {"nome": "Alyne", "turma": "25.1", "tipo": "Purchase", "data": "28/11/2025"}, "july_msilva@hotmail.com": {"nome": "Juliana Marques Da Silva Vieira", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "19/03/2026"}, "andersona3ita@gmail.com": {"nome": "Anderson Andrade", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "15/12/2025"}, "sinaidesouza.contadora@gmail.com": {"nome": "Maria Sinaide De Souza", "turma": "25.1", "tipo": "Purchase", "data": "14/09/2025"}, "juliana.alves@additus.com.br": {"nome": "Juliana Alves Da Silva", "turma": "25.1", "tipo": "Manual", "data": "28/11/2025"}, "nathy_nathally@hotmail.com": {"nome": "Nathally Nayanne Alencar Silva Leao", "turma": "25.1", "tipo": "Purchase", "data": "26/02/2026"}, "lufazevedo@gmail.com": {"nome": "Luciana Fonseca Azevedo De Souza", "turma": "25.1", "tipo": "Purchase", "data": "07/11/2025"}, "vision.tax@outlook.com": {"nome": "Vision.Tax@Outlook.Com", "turma": "25.1", "tipo": "Manual", "data": "12/03/2026"}, "secretaria@fexeducacao.edu.br": {"nome": "Secretaria", "turma": "25.1", "tipo": "Manual", "data": "06/10/2025"}, "tatiana@crodriguesassessoria.com.br": {"nome": "Buzzo E Rodrigues Contabilidade Digital Ltda", "turma": "25.1", "tipo": "Manual", "data": "12/02/2026"}, "equipe@elicont.com.br": {"nome": "Eliane Santos Da Silva", "turma": "25.1", "tipo": "Manual", "data": "12/02/2026"}, "gabi-e@hotmail.com": {"nome": "Gabriela Eckhardt", "turma": "25.1", "tipo": "Manual", "data": "20/03/2026"}, "jmelocontabeis@gmail.com": {"nome": "Jaynara Alves Melo", "turma": "25.1", "tipo": "Manual", "data": "13/08/2025"}, "bermutecontabilidade@gmail.com": {"nome": "Marlucia Bermute Da Silva", "turma": "25.1", "tipo": "Purchase", "data": "23/06/2025"}, "matheusslimamn@gmail.com": {"nome": "Matheus Santos Lima", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "16/03/2026"}, "regysouza@hotmail.com.br": {"nome": "Regiene Pereira De Souza", "turma": "25.1", "tipo": "Manual", "data": "24/03/2026"}, "jpl_contabilidade@hotmail.com": {"nome": "Leonel Serviços Contábeis Ltda", "turma": "25.1", "tipo": "Manual", "data": "10/03/2026"}, "graziellyr88@gmail.com": {"nome": "Grazielly Rodrigues", "turma": "25.1", "tipo": "Manual", "data": "17/03/2026"}, "lsfrutuosoo@gmail.com": {"nome": "Liliane Frutuoso", "turma": "25.1", "tipo": "Purchase", "data": "23/03/2026"}, "contato@noicontabilidade.com": {"nome": "Noi Gestão E Contabilidade", "turma": "25.1", "tipo": "Manual", "data": "27/10/2025"}, "solucoescontabeisra@gmail.com": {"nome": "Rafaella Alves Pereira", "turma": "25.1", "tipo": "Purchase", "data": "20/03/2026"}, "edyslanemikelane99@gmail.com": {"nome": "Edyslane Mikelane Da Silva Marinho", "turma": "25.1", "tipo": "Purchase", "data": "26/03/2026"}, "juliana@exatuscontabil.com": {"nome": "Juliana Lobosco Queiroz", "turma": "RENOVAÇÃO", "tipo": "Manual", "data": "23/03/2026"}, "josemaracontadora@gmail.com": {"nome": "Josemara De Sousa Silva", "turma": "25.1", "tipo": "Purchase", "data": "12/02/2026"}, "livia.lccontabilidade@hotmail.co": {"nome": "Lívia Cristina Fernandez Farias", "turma": "25.1", "tipo": "Manual", "data": "13/02/2025"}, "livia.lccontabilidade@hotmail.com": {"nome": "Livia", "turma": "25.1", "tipo": "Manual", "data": "25/09/2025"}, "simonecontcopssmsjp@gmail.com": {"nome": "Simone Costa", "turma": "25.1", "tipo": "Purchase", "data": "12/02/2025"}, "anapaula.contab@gmail.com": {"nome": "Ana Paula Da Silva", "turma": "RENOVAÇÃO", "tipo": "Manual", "data": "20/03/2026"}, "italoryan082@gmail.com": {"nome": "Italo", "turma": "25.1", "tipo": "Manual", "data": "26/03/2026"}, "jeansoares140@yahoo.com.br": {"nome": "Jean Soares Costa", "turma": "25.1", "tipo": "Purchase", "data": "12/01/2026"}, "apacdiretoria@gmail.com": {"nome": "Marilia De Souza Soares", "turma": "25.1", "tipo": "Manual", "data": "05/03/2026"}, "fazanoni@e-consultingse.com.br": {"nome": "Fabíola Zanoni", "turma": "25.1", "tipo": "Purchase", "data": "12/12/2025"}, "janainagalvao100@gmail.com": {"nome": "Janaina", "turma": "RENOVAÇÃO", "tipo": "Manual", "data": "14/01/2026"}, "cantelli.contabilidade@hotmail.com": {"nome": "Jaqueline Cantelli Feitosa", "turma": "25.1", "tipo": "Purchase", "data": "10/03/2026"}, "rrspassessoria@gmail.com": {"nome": "Renata Rodrigues Da Silva Passos", "turma": "25.1", "tipo": "Purchase", "data": "27/02/2026"}, "erika.sercontabil@hotmail.com": {"nome": "Erika Spindola De Farias Fernandes", "turma": "24.2", "tipo": "Purchase", "data": "04/04/2025"}, "contato@a3rconsultoria.com.br": {"nome": "A3R Contabilidade E Gestão Empresarial", "turma": "25.1", "tipo": "Purchase", "data": "21/03/2026"}, "marcossuete@outlook.com": {"nome": "Marcos Vinicius Santana Suete", "turma": "24.2", "tipo": "Purchase", "data": "23/11/2024"}, "pestevam10@gmail.com": {"nome": "Priscila Estevam", "turma": "24.2", "tipo": "Purchase", "data": "13/08/2025"}, "flaviaviolino27@yahoo.com.br": {"nome": "Flavia Danielle Do Lago Alves Artmann", "turma": "24.2", "tipo": "Purchase", "data": "15/05/2025"}, "contatobeatrizperacin@gmail.com": {"nome": "Beatriz Peracin", "turma": "25.1", "tipo": "Purchase", "data": "26/03/2026"}, "danielasantos.cont@gmail.com": {"nome": "Daniela Rosângela Dos Santos", "turma": "25.1", "tipo": "Purchase", "data": "23/03/2026"}, "contadoracarolinecosta@gmail.com": {"nome": "Caroline De Araujo Costa", "turma": "25.1", "tipo": "Purchase", "data": "15/12/2025"}, "vca.cont.mg@gmail.com": {"nome": "Valquiria Assis", "turma": "25.1", "tipo": "Purchase", "data": "24/03/2026"}, "contadoramarliane@gmail.com": {"nome": "Marliane Da Silva Carvalho Veloso", "turma": "24.2", "tipo": "Purchase", "data": "05/11/2024"}, "sarahcontabeis@gmail.com": {"nome": "Sarah Cristina Pasquariello Sampaio", "turma": "24.2", "tipo": "Purchase", "data": "05/08/2025"}, "contato@idealizecontabilidade.com.br": {"nome": "Renata Aparecida Barbosa Ferreira Ribeiro", "turma": "24.2", "tipo": "Purchase", "data": "27/08/2025"}, "andressakrubniki@gmail.com": {"nome": "Andressa Krubniki", "turma": "24.2", "tipo": "Purchase", "data": "25/08/2025"}, "scontabilidadejacobina@gmail.com": {"nome": "Sylvia Schettini L C Gaspari", "turma": "25.1", "tipo": "Manual", "data": "06/03/2026"}, "benildo@borbaassessoria.com.br": {"nome": "Benildo Matias Borba", "turma": "24.2", "tipo": "Purchase", "data": "05/11/2024"}, "manto.asscont@gmail.com": {"nome": "Flávia Moraes Tereza", "turma": "24.2", "tipo": "Purchase", "data": "05/11/2024"}, "contato@salutecontabil.com.br": {"nome": "Maysa Carvalho", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "14/03/2026"}, "jh.contabilidade@outlook.com": {"nome": "Jose Henrique Gomes De Santana", "turma": "24.2", "tipo": "Purchase", "data": "13/08/2025"}, "contabilidadejardene@hotmail.com": {"nome": "Jardene Aparecida Rodrigues De Carvalho Fonseca", "turma": "24.2", "tipo": "Purchase", "data": "20/07/2025"}, "saulopagani81@gmail.com": {"nome": "Saulo Pagani Da Silva", "turma": "24.2", "tipo": "Purchase", "data": "06/01/2025"}, "genyss2@hotmail.com": {"nome": "Genilda Soares Da Silva", "turma": "24.2", "tipo": "Purchase", "data": "25/08/2025"}, "francislainebh@hotmail.com": {"nome": "Francislaine Marques Contabilidade E Consultoria Ltda", "turma": "24.2", "tipo": "Purchase", "data": "12/03/2026"}, "elenicostacontabilidade@gmail.com": {"nome": "Eleni Costa De Oliveira", "turma": "24.2", "tipo": "Purchase", "data": "27/06/2025"}, "eva.tributarista@gmail.com": {"nome": "Eva Ribeiro Dos Santos", "turma": "24.2", "tipo": "Purchase", "data": "12/08/2025"}, "zeliarosa34@gmail.com": {"nome": "Zelia Rosa", "turma": "25.1", "tipo": "Purchase", "data": "25/03/2026"}, "ml-fava@bol.com.br": {"nome": "Maria Do Livramento De Lima Favacho", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "13/03/2026"}, "andeiabarreira@aasp.org.br": {"nome": "Andreia Barreira", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "05/11/2024"}, "suzannecontadora@gmail.com": {"nome": "Suzanne Dos Santos Ferreira Paschoal", "turma": "24.2", "tipo": "Purchase", "data": "01/05/2025"}, "camilla@fernandesoliveira.com": {"nome": "Camilla", "turma": "24.2", "tipo": "Manual", "data": "29/12/2025"}, "thaissalinas.contadora@gmail.com": {"nome": "Thaissalinas Contadora", "turma": "25.1", "tipo": "Purchase", "data": "19/03/2026"}, "ariannymouraf.cont@gmail.com": {"nome": "Arianny Moura Figueredo", "turma": "RENOVAÇÃO", "tipo": "Manual", "data": "09/03/2026"}, "contadoraloise@gmail.com": {"nome": "Loise Sales", "turma": "24.2", "tipo": "Purchase", "data": "31/05/2025"}, "mariarosianefb@gmail.com": {"nome": "Rosiane", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "27/02/2026"}, "contaicontabeis@gmail.com": {"nome": "Glaucia Medeiros Da Silva Rodrigues", "turma": "25.1", "tipo": "Manual", "data": "20/12/2025"}, "vevemaciel@gmail.com": {"nome": "Veronica Siqueira Maciel", "turma": "25.1", "tipo": "Purchase", "data": "23/03/2026"}, "fherrener@gmail.com": {"nome": "Raiane Ribeiro", "turma": "25.1", "tipo": "Purchase", "data": "28/01/2026"}, "napaula89@gmail.com": {"nome": "Ana Paula", "turma": "25.1", "tipo": "Purchase", "data": "18/08/2025"}, "contabilis.ac@gmail.com": {"nome": "Juliana Ribeiro Batista", "turma": "24.2", "tipo": "Purchase", "data": "05/11/2024"}, "sinaidesouza.contabil@gmail.com": {"nome": "Maria Sinaide De Souza", "turma": "25.1", "tipo": "Manual", "data": "23/01/2026"}, "enildajm@gmail.com": {"nome": "Enilda De Jesus Modesto", "turma": "25.1", "tipo": "Purchase", "data": "23/03/2026"}, "natalia@nazcont.com.br": {"nome": "Natalia Silva Souza", "turma": "24.2", "tipo": "Purchase", "data": "15/10/2025"}, "beatriz.j.rodrigues@hotmail.com": {"nome": "Beatriz De Jesus Rodrigues", "turma": "25.1", "tipo": "Purchase", "data": "22/09/2025"}, "contadoragrazielamota@gmail.com": {"nome": "Graziela Mota", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "26/08/2025"}, "contato@onstagesf.com.br": {"nome": "Lucas Silveira Macedo", "turma": "24.2", "tipo": "Purchase", "data": "09/12/2024"}, "evan7contabilidadedigital@gmail.com": {"nome": "Cristiane Aparecida Hernandes", "turma": "24.2", "tipo": "Purchase", "data": "05/11/2024"}, "andreavillela@allelaservicos.com.br": {"nome": "Maria Andréa Villela Da Rocha", "turma": "25.1", "tipo": "Purchase", "data": "21/03/2026"}, "contato@silveiralima.com": {"nome": "Lorena Sagina Da Silveira Oliveira", "turma": "25.1", "tipo": "Purchase", "data": "14/01/2026"}, "luizarsantos.adv@gmail.com": {"nome": "Luiza Rodrigues Dos Santos", "turma": "Turma A", "tipo": "Purchase", "data": "24/02/2025"}, "rodrigotoledo_sp@hotmail.com": {"nome": "Rodrigo Toledo Rodrigues", "turma": "Turma A", "tipo": "Purchase", "data": "05/11/2024"}, "vivivolponi@gmail.com": {"nome": "Vivina Juziely Selis Silva Volponi", "turma": "Turma A", "tipo": "Purchase", "data": "20/02/2025"}, "romualdocont@gmail.com": {"nome": "Francisco Romualdo De Lima Gomes", "turma": "Turma A", "tipo": "Purchase", "data": "05/11/2024"}, "elberadm2019@gmail.com": {"nome": "Elber Paulino", "turma": "Turma A", "tipo": "Purchase", "data": "22/01/2025"}, "flavia_iolanda@hotmail.com": {"nome": "Flávia Iolanda Batista", "turma": "25.1", "tipo": "Purchase", "data": "20/06/2025"}, "matheus.aragao198@gmail.com": {"nome": "Matheus Aragao", "turma": "25.1", "tipo": "Purchase", "data": "03/03/2026"}, "adv.edivania.dantas@gmail.com": {"nome": "Edivania Dantas", "turma": "25.1", "tipo": "Manual", "data": "10/03/2026"}, "mouracontabilidade22916@hotmail.com": {"nome": "Amália Moura", "turma": "Turma A", "tipo": "Purchase", "data": "09/02/2026"}, "mtcontabil@hotmail.com": {"nome": "Maria Teresa Aragao", "turma": "25.1", "tipo": "Manual", "data": "25/03/2026"}, "andreabelocn@gmail.com": {"nome": "Andréa Belo", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "21/02/2026"}, "rodrigomarcus.adv@gmail.com": {"nome": "Rodrigo Marcus De Souza Santos", "turma": "Turma A", "tipo": "Purchase", "data": "28/02/2025"}, "nilzamayara@hotmail.com": {"nome": "Mayara", "turma": "25.1", "tipo": "Purchase", "data": "26/03/2026"}, "vercosatreinamentos@gmail.com": {"nome": "Lilian Verçosa", "turma": "Turma A", "tipo": "Purchase", "data": "26/03/2026"}, "jakeline.lopes321@gmail.com": {"nome": "Jakeline Da Silva Lopes", "turma": "24.2", "tipo": "Purchase", "data": "15/04/2025"}, "leonardo.sampaiio@gmail.com": {"nome": "Leonardo Sampaio Vidinha", "turma": "25.1", "tipo": "Purchase", "data": "05/03/2026"}, "cassiane_cristina84@hotmail.com": {"nome": "Cassiane Cristina84", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "20/03/2026"}, "fernandaadvocacia@outlook.com": {"nome": "Fernanda De Melo Ferreira", "turma": "25.1", "tipo": "Manual", "data": "10/03/2026"}, "ivana00@hotmail.com": {"nome": "Ivana Gomes Ruiz Galrão", "turma": "25.1", "tipo": "Purchase", "data": "05/03/2026"}, "ana7contabilidade@hotmail.com": {"nome": "Analise Stefani", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "13/02/2026"}, "jessicavasconcelos.contabil@gmail.com": {"nome": "Jessica Maria Brito Vasconcelos", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "18/10/2025"}, "paulachristiane@hotmail.com": {"nome": "Paula Christiane Mascarenhas Moura", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "03/03/2026"}, "leiaidalina@yahoo.com.br": {"nome": "Leia Idalina De Lima", "turma": "Turma A", "tipo": "Purchase", "data": "05/11/2024"}, "madyvasconcelos@hotmail.com": {"nome": "Mady", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "17/11/2025"}, "escociohelen@gmail.com": {"nome": "Helen Cristina Gomes Escocio", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "27/11/2025"}, "patricia.smelocontadora@outlook.com": {"nome": "Patrícia Silva Melo", "turma": "25.1", "tipo": "Purchase", "data": "28/02/2026"}, "efizconsultoria@gmail.com": {"nome": "Efiz Consultoria", "turma": "25.1", "tipo": "Purchase", "data": "07/02/2026"}, "lucaslinsadm@gmail.com": {"nome": "Lucas Da Cunha Lins", "turma": "25.1", "tipo": "Purchase", "data": "09/05/2025"}, "dannygarciacontadora@gmail.com": {"nome": "Daniela Garcia Martins", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "17/12/2025"}, "cursoseverest@everestcontabilidade.com": {"nome": "Everest Contabilidade", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "13/03/2026"}, "marciaagsousa1907@gmail.com": {"nome": "Marcia Andréia Castro Gomes", "turma": "25.1", "tipo": "Manual", "data": "03/10/2025"}, "edna_saraujo@yahoo.com.br": {"nome": "Edna De Araujo Santos", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "05/11/2024"}, "biancacosmo@hotmail.com": {"nome": "Bianca Cosmo Mariz Alves", "turma": "25.1", "tipo": "Manual", "data": "14/02/2026"}, "paula.thyara.contadora@gmail.com": {"nome": "Paula Thyara Contadora", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "24/03/2026"}, "gizianne@hotmail.com": {"nome": "Gizianne Alves De Morais", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "13/08/2025"}, "andreiabarreira@aasp.org.br": {"nome": "Andreia Barreira", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "05/11/2024"}, "edileusapbpereira@gmail.com": {"nome": "Edileusa Paes Braga Pereira", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "14/02/2026"}, "fabianadias.contadora@outlook.com": {"nome": "Fabiana Rodrigues Dias", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "23/10/2025"}, "fran-palacio@hotmail.com": {"nome": "Francisca Nargila Palacio Lima", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "13/09/2025"}, "laianatobin_contadora@outlook.com": {"nome": "Laiana Oliveira Tobin", "turma": "24.2", "tipo": "Manual", "data": "25/02/2026"}, "escritorio@dcontar.com.br": {"nome": "Denise Da Silva Cruz", "turma": "25.1", "tipo": "Manual", "data": "22/12/2025"}, "evertonsousacontabilidade@gmail.com": {"nome": "Everton Sousa", "turma": "25.1", "tipo": "Manual", "data": "14/12/2025"}, "aparecidacassia1105@gmail.com": {"nome": "Aparecida De Cassia Gomes Rodrigues Ribeiro", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "21/05/2025"}, "contabilizest@gmail.com": {"nome": "Inacio Leite De Souza", "turma": "25.1", "tipo": "Purchase", "data": "19/03/2026"}, "escritorioprscont@gmail.com": {"nome": "Carlos Eduardo Simões De Oliveira Silva", "turma": "25.1", "tipo": "Purchase", "data": "21/01/2026"}, "fran.cristina095@gmail.com": {"nome": "Francielle Cristina Silva Dos Santos", "turma": "24.2", "tipo": "Purchase", "data": "20/10/2025"}, "marianacastro2211@gmail.com": {"nome": "Mariana Carla Castro Guimarães Silva", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "03/09/2025"}, "silvanacontabil08@gmail.com": {"nome": "Silvana Dias", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "24/03/2026"}, "fernandaconsultoria.bpo@gmail.com": {"nome": "Fernanda", "turma": "25.1", "tipo": "Purchase", "data": "18/02/2026"}, "anarodrigues@udicont.com": {"nome": "Ana Paula Rodrigues De Carvalho", "turma": "25.1", "tipo": "Purchase", "data": "15/01/2026"}, "machado.luana@hotmail.com": {"nome": "Machado.Luana@Hotmail.Com", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "02/08/2025"}, "edmelo070975@gmail.com": {"nome": "Eduardo Silva Melo", "turma": "RENOVAÇÃO", "tipo": "Manual", "data": "28/02/2025"}, "rcontabilidadepa@gmail.com": {"nome": "Rcontabilidadepa", "turma": "25.1", "tipo": "Manual", "data": "23/03/2026"}, "camillaoliveira18@gmail.com": {"nome": "Camillaoliveira18", "turma": "25.1", "tipo": "Purchase", "data": "19/02/2026"}, "rochadanielecontabil@gmail.com": {"nome": "Rochadanielecontabil", "turma": "25.1", "tipo": "Purchase", "data": "03/03/2026"}, "francisco.junior@confiscogestaocontabil.com.br": {"nome": "Francisco Ferreira Paz Junior", "turma": "Turma A", "tipo": "Purchase", "data": "05/11/2024"}, "lurdinhalopes17@gmail.com": {"nome": "Lurdinhalopes17", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "25/02/2026"}, "renatinhanery@yahoo.com.br": {"nome": "Renata Dos Santos Nery", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "05/11/2024"}, "thaismcarvalho91@gmail.com": {"nome": "Thais De Carvalho", "turma": "RENOVAÇÃO", "tipo": "Manual", "data": "13/02/2026"}, "hesdrascont@gmail.com": {"nome": "Hesdras Marques De Araujo Lima", "turma": "RENOVAÇÃO", "tipo": "Manual", "data": "23/03/2026"}, "pauloyaichi@gmail.com": {"nome": "Pauloyaichi", "turma": "25.1", "tipo": "Manual", "data": "18/03/2026"}, "contadora.elaineherculano@hotmail.com": {"nome": "Elaine Herculano", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "05/11/2024"}, "francyrenzv@gmail.com": {"nome": "Francyrenzv", "turma": "Turma A", "tipo": "Purchase", "data": "18/02/2025"}, "contab.camila@gmail.com": {"nome": "Camila Tavares Freire", "turma": "24.2", "tipo": "Purchase", "data": "21/07/2025"}, "taynaram.s97@hotmail.com": {"nome": "Taynara Matias Da Silva", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "11/07/2025"}, "edumeloesilva@gmail.com": {"nome": "Eduardo Melo E Silva", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "13/11/2025"}, "jardiery@hotmail.com": {"nome": "Jardiery", "turma": "25.1", "tipo": "Purchase", "data": "26/12/2025"}, "raphaely@contabilizee.com.br": {"nome": "Raphaely", "turma": "25.1", "tipo": "Manual", "data": "12/03/2026"}, "escrmac@hotmail.com": {"nome": "Escrmac@Hotmail.Com", "turma": "24.2", "tipo": "Purchase", "data": "10/06/2025"}, "rachellcontabilidade@gmail.com": {"nome": "Rachellcontabilidade@Gmail.Com", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "08/12/2025"}, "contato@velosconsultoria.com.br": {"nome": "Fulvia F Assis", "turma": "25.1", "tipo": "Manual", "data": "18/03/2026"}, "ronald.lenz@lenzcontabilidade.com.br": {"nome": "Ronald Lenz", "turma": "25.1", "tipo": "Manual", "data": "16/03/2026"}, "unicacontabilidadego@gmail.com": {"nome": "Ana Cristina", "turma": "25.1", "tipo": "Purchase", "data": "12/03/2026"}, "washingtonvca21@gmail.com": {"nome": "Washington De Jesus Oliveira Aleixo", "turma": "25.1", "tipo": "Purchase", "data": "26/03/2026"}, "maria.daiane@outlook.com": {"nome": "Maria Daiane Bezerra Bento", "turma": "25.1", "tipo": "Manual", "data": "03/03/2026"}, "jhessycaxavierr@gmail.com": {"nome": "Jéssica Da Silva Xavier", "turma": "Turma A", "tipo": "Purchase", "data": "24/02/2025"}, "anamarcela@conectegestaocontabil.com.br": {"nome": "Ana Marcela Pereira Da Silva", "turma": "RENOVAÇÃO", "tipo": "Manual", "data": "13/03/2026"}, "joanice_meyre@hotmail.com": {"nome": "Joanice Meyre Goncalves De Lima", "turma": "25.1", "tipo": "Purchase", "data": "26/09/2025"}, "edlena22@gmail.com": {"nome": "Edilene Jácome De Melo", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "24/02/2025"}, "contato@contabilamr.com.br": {"nome": "Alessandra Micaele Ribeiro Ezaki", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "26/08/2025"}, "francytc@hotmail.com": {"nome": "Franciele Renz Valim", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "25/02/2025"}, "daugustobh@hotmail.com": {"nome": "Daugustobh", "turma": "Turma A", "tipo": "Purchase", "data": "09/01/2026"}, "carladanielys@hotmail.com": {"nome": "Carladanielys", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "12/03/2026"}, "efh.herculano@gmail.com": {"nome": "Efh.Herculano@Gmail.Com", "turma": "25.1", "tipo": "Purchase", "data": "14/01/2026"}, "portela.contabil@hotmail.com": {"nome": "Lídia Portela", "turma": "25.1", "tipo": "Purchase", "data": "16/03/2026"}, "vania.contadora@hotmail.com": {"nome": "Vania S C Pacheco", "turma": "25.1", "tipo": "Purchase", "data": "19/03/2026"}, "lais.souzacontadora@gmail.com": {"nome": "Lais Aiane De Santana Santos", "turma": "25.1", "tipo": "Manual", "data": "23/03/2026"}, "tuanealvescontadora@gmail.com": {"nome": "Camila Tuane Ferreira Alves", "turma": "25.1", "tipo": "Manual", "data": "23/03/2026"}, "sileidefinancas@gmail.com": {"nome": "Sileide De Sousa E Sousa", "turma": "25.1", "tipo": "Purchase", "data": "23/03/2026"}, "monica.alves.g@hotmail.com": {"nome": "Monica.Alves.G@Hotmail.Com", "turma": "25.1", "tipo": "Purchase", "data": "20/08/2025"}, "rosaterezinha@yahoo.com.br": {"nome": "Rosa Terezinha Rodrigues", "turma": "24.2", "tipo": "Purchase", "data": "08/07/2025"}, "contagilassessoria@hotmail.com": {"nome": "Gilvanete", "turma": "25.1", "tipo": "Purchase", "data": "29/07/2025"}, "contadorabarbaramaldonado@gmail.com": {"nome": "Barbara Maldonado", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "24/03/2026"}, "marianavilela@outlook.com": {"nome": "Mariana Vilela", "turma": "25.1", "tipo": "Purchase", "data": "13/02/2025"}, "assessoriacontabil.0021@gmail.com": {"nome": "Tamiris Coutinho Silva", "turma": "24.2", "tipo": "Purchase", "data": "23/08/2025"}, "nayalle.duarte@gmail.com": {"nome": "Nayalle Duarte", "turma": "25.1", "tipo": "Purchase", "data": "05/08/2025"}, "ariannymfcontadora@gmail.com": {"nome": "Arianny Moura Figueredo", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "18/12/2025"}, "helenamelocontadora@gmail.com": {"nome": "Ivana Helena Melo De Lima", "turma": "25.1", "tipo": "Manual", "data": "18/03/2026"}, "rac.contabil@yahoo.com.br": {"nome": "Rodrigo Azevedo De Carvalho", "turma": "25.1", "tipo": "Purchase", "data": "22/03/2026"}, "bel.contabil@gmail.com": {"nome": "Isabel Cristina Santana", "turma": "25.1", "tipo": "Purchase", "data": "24/03/2026"}, "amanda@controllcontabilidade.com.br": {"nome": "Amanda Mayana Torres Silva", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "25/01/2026"}, "guilhermearagaocont@gmail.com": {"nome": "Guilherme Aragão Do Nascimento", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "05/11/2024"}, "bibiataide1@hotmail.com": {"nome": "Gabriela Fernandes", "turma": "25.1", "tipo": "Purchase", "data": "24/09/2025"}, "priscilasp.85@gmail.com": {"nome": "Priscila Da Silva Palmeira", "turma": "24.2", "tipo": "Purchase", "data": "16/06/2025"}, "elianecontabil@hotmail.com": {"nome": "Eliane Rufino", "turma": "25.1", "tipo": "Manual", "data": "04/03/2026"}, "bastosleila@gmail.com": {"nome": "Leila Nogueira Bastos", "turma": "Turma A", "tipo": "Purchase", "data": "05/11/2024"}, "mayaraferreiracontadora@gmail.com": {"nome": "Mayaraferreiracontadora@Gmail.Com", "turma": "25.1", "tipo": "Purchase", "data": "25/03/2026"}, "rafaela1.m@hotmail.com": {"nome": "Rafaela Maria Da Silva", "turma": "25.1", "tipo": "Manual", "data": "26/03/2026"}, "alexandregjesus@gmail.com": {"nome": "Alexandre Gonçalves De Jesus", "turma": "25.1", "tipo": "Manual", "data": "24/03/2026"}, "pri_vieira_@hotmail.com": {"nome": "Priscila Vieira", "turma": "24.2", "tipo": "Manual", "data": "28/10/2025"}, "luanaap.oliveiras@gmail.com": {"nome": "Luana Oliveira", "turma": "24.2", "tipo": "Manual", "data": "22/02/2025"}, "bruna.s.nardin@gmail.com": {"nome": "Bruna Nardin", "turma": "25.1", "tipo": "Manual", "data": "30/01/2026"}, "contato@lidersolucoescontabeis.com": {"nome": "Débora Marta De Carvalho Veloso", "turma": "Turma A", "tipo": "Purchase", "data": "14/01/2025"}, "ionesuelyramalho@gmail.com": {"nome": "Ione Suely Veríssimo Ramalho", "turma": "RENOVAÇÃO", "tipo": "Manual", "data": "13/03/2026"}, "karlapatricia1712@hotmail.com": {"nome": "Karla Patricia Pereira Da Silva", "turma": "25.1", "tipo": "Purchase", "data": "03/03/2026"}, "marcusaraujo.contabil@gmail.com": {"nome": "Marcos Tulio Araujo", "turma": "24.2", "tipo": "Purchase", "data": "05/06/2025"}, "louzadaraysa@hotmail.com": {"nome": "Raysa Andrea Louzada Barbosa", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "04/02/2026"}, "jaque.cont05@gmail.com": {"nome": "Jaqueline Gutierrez", "turma": "25.1", "tipo": "Purchase", "data": "22/12/2025"}, "slcaldas383@gmail.com": {"nome": "Sylvia S L C Gaspari", "turma": "25.1", "tipo": "Manual", "data": "22/03/2026"}, "tatiana.f.buzzo@gmail.com": {"nome": "Tatiana De Fatima Buzzo", "turma": "Turma A", "tipo": "Purchase", "data": "17/03/2026"}, "necygi@hotmail.com": {"nome": "Necy De Sousa Brandão", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "05/11/2024"}, "priscilagopinheiro@gmail.com": {"nome": "Priscilagopinheiro", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "03/12/2025"}, "jaynaraalvesmelo@gmail.com": {"nome": "Jaynara Alves Melo", "turma": "Turma A", "tipo": "Purchase", "data": "10/06/2025"}, "andrezzaespindola@gmail.com": {"nome": "Andrezzaespindola@Gmail.Com", "turma": "Turma A", "tipo": "Purchase", "data": "27/11/2024"}, "eliane.santos.cont@gmail.com": {"nome": "Eliane Santos", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "18/01/2025"}, "giovannanha2@gmail.com": {"nome": "Giovanna Nolêto De Araújo", "turma": "Turma A", "tipo": "Purchase", "data": "27/02/2025"}, "fulviafonseca@hotmail.com": {"nome": "Fulvia Fonseca De Assis", "turma": "25.1", "tipo": "Purchase", "data": "19/03/2026"}, "elizabette_santana21@hotmail.com": {"nome": "Elizabette_Santana21@Hotmail.Com", "turma": "24.2", "tipo": "Purchase", "data": "05/11/2024"}, "carla.tms@hotmail.com": {"nome": "Carla Cristina T. Souza", "turma": "Turma A", "tipo": "Purchase", "data": "31/10/2025"}, "dina-ferreira19@outlook.com": {"nome": "Dina Da Conceição Ferreira", "turma": "25.1", "tipo": "Manual", "data": "20/01/2026"}, "karineserpa39@gmail.com": {"nome": "Karine De Carvalho Serpa", "turma": "25.1", "tipo": "Purchase", "data": "25/03/2026"}, "marciacontabilidade21@gmail.com": {"nome": "Antônia Marcia De Sousa Rodrigues", "turma": "24.2", "tipo": "Purchase", "data": "03/01/2025"}, "milly.coelho@hotmail.com": {"nome": "Jamile Coelho Da Silva", "turma": "25.1", "tipo": "Manual", "data": "10/12/2025"}, "renovocontabill@gmail.com": {"nome": "Renovo Contábil", "turma": "25.1", "tipo": "Purchase", "data": "24/10/2025"}, "lumagonzalez23@hotmail.com": {"nome": "Luma De Oliveira Gonzalez Castro", "turma": "Turma A", "tipo": "Purchase", "data": "04/02/2025"}, "sercon.qts@hotmail.com": {"nome": "Daniele De Oliveira Germano", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "05/03/2026"}, "gustavo@andradearruda.com": {"nome": "Gustavo Andrade Arruda", "turma": "25.1", "tipo": "Purchase", "data": "17/06/2025"}, "mabumonica@gmail.com": {"nome": "Mabumonica", "turma": "25.1", "tipo": "Purchase", "data": "26/03/2026"}, "marcia.mcostacontabilidade@gmail.com": {"nome": "Marcia", "turma": "25.1", "tipo": "Purchase", "data": "26/03/2026"}, "larissamrodrigs@gmail.com": {"nome": "Larissa Marques Rodrigues", "turma": "25.1", "tipo": "Purchase", "data": "18/08/2025"}, "marcel_ofc@hotmail.com": {"nome": "Marcel Sobreiro Patrocinio", "turma": "25.1", "tipo": "Purchase", "data": "20/01/2026"}, "limaepaz@gmail.com": {"nome": "Maria Joselma Silva Lima Paz", "turma": "25.1", "tipo": "Purchase", "data": "03/07/2025"}, "neurivanalmeida9@gmail.com": {"nome": "Neurivan Cunha De Almeida", "turma": "25.1", "tipo": "Manual", "data": "14/02/2026"}, "luciane.contabilidade@hotmail.com": {"nome": "Luciane Pereira Da Silva", "turma": "RENOVAÇÃO", "tipo": "Purchase", "data": "26/02/2025"}, "attivacontabilidadeac@gmail.com": {"nome": "Attiva Contabilidade", "turma": "25.1", "tipo": "Manual", "data": "02/07/2026"}, "cassiaribeiro.contadora@gmail.com": {"nome": "Aparecida De Cassia Gomes Rodrigues Ribeiro", "turma": "25.1", "tipo": "Manual", "data": "02/07/2026"}, "contato@facilcontabilidade.com.br": {"nome": "Jonas Felix De Souza", "turma": "25.1", "tipo": "Manual", "data": "02/07/2026"}, "juliano@innovar.cnt.br": {"nome": "Innovar Contabilidade Ltda.", "turma": "25.1", "tipo": "Manual", "data": "02/07/2026"}, "scavassa@terra.com.br": {"nome": "Júlio César Scavassa", "turma": "25.1", "tipo": "Manual", "data": "02/07/2026"}, "dinadefelix@gmail.com": {"nome": "Dina Felix", "turma": "25.1", "tipo": "Manual", "data": "02/07/2026"}, "daiannesilva1000@gmail.com": {"nome": "Bruno Ramos", "turma": "25.1", "tipo": "Manual", "data": "02/07/2026"}, "bs7849416@gmail.com": {"nome": "Beatriz", "turma": "25.1", "tipo": "Manual", "data": "02/07/2026"}, "servicoscontabeislm@gmail.com": {"nome": "Luana Machado", "turma": "25.1", "tipo": "Manual", "data": "02/07/2026"}, "contabil.rafaelarl@gmail.com": {"nome": "Rafaela Lourenço Da Silva Lira", "turma": "25.1", "tipo": "Manual", "data": "02/07/2026"}, "susana.deliz@gmail.com": {"nome": "Susana Liz", "turma": "25.1", "tipo": "Manual", "data": "02/07/2026"}, "gessica.silvabispo@hotmail.com": {"nome": "Gessica Silva Bispo", "turma": "25.1", "tipo": "Manual", "data": "02/07/2026"}, "serconcnt@gmail.com": {"nome": "Daniele De Oliveira Germano", "turma": "25.1", "tipo": "Manual", "data": "02/07/2026"}, "chriscoimbra.cc@gmail.com": {"nome": "Christiane Coimbra", "turma": "25.1", "tipo": "Manual", "data": "02/07/2026"}, "solange@seproccontabilidade.com.br": {"nome": "Solange Ferreira De Araújo Catarino", "turma": "25.1", "tipo": "Manual", "data": "02/07/2026"}, "luceliapaim@hotmail.com": {"nome": "Lucelia Fernandes Paim", "turma": "25.1", "tipo": "Manual", "data": "02/07/2026"}, "gustavo@contabildimensao.com.br": {"nome": "Francisco Araújo Filho", "turma": "25.1", "tipo": "Manual", "data": "02/07/2026"}, "diasschunk@gmail.com": {"nome": "Suelem Dias Schunk", "turma": "25.1", "tipo": "Manual", "data": "02/07/2026"}, "contadora.tatiferreira@gmail.com": {"nome": "Contadora Tatiana Ferreira Ltda.", "turma": "25.1", "tipo": "Manual", "data": "02/07/2026"}, "elinariasilva@hotmail.com": {"nome": "Elinaria", "turma": "25.1", "tipo": "Manual", "data": "02/07/2026"}, "cfranciele1989@gmail.com": {"nome": "Franciele", "turma": "25.1", "tipo": "Manual", "data": "02/07/2026"}, "c3acontabilidade@gmail.com": {"nome": "C3A Contabilidade", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "samara@masterhubcontabilidade.com.br": {"nome": "Samara", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "carolinefelix05@gmail.com": {"nome": "Caroline Felix", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "vasconcelos@avbr.net": {"nome": "Vasconcelos", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "akatfranca@hotmail.com": {"nome": "Akatfranca", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "lawsuitcontabil@gmail.com": {"nome": "Lawsuit Contabil", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "rsassessoriacont@gmail.com": {"nome": "Rs Assessoria Contabil", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "slcontabilidade.rn@gmail.com": {"nome": "Sl Contabilidade Rn", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "contadoramariliap@gmail.com": {"nome": "Marilia P", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "franca.fiscal@gmail.com": {"nome": "Franca Fiscal", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "reisccontabil@gmail.com": {"nome": "Reis Contabil", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "leticiacalixtoconsultoria@gmail.com": {"nome": "Leticia Calixto Consultoria", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "diogofelipesa@gmail.com": {"nome": "Diogo Felipe", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "barbararough@gmail.com": {"nome": "Barbara Rough", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "gestorpalazzo23@gmail.com": {"nome": "Gestor Palazzo", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "vevcontabilidadedigital@gmail.com": {"nome": "Vev Contabilidade Digital", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "contato@gespeccontabilidade.com.br": {"nome": "Gespec Contabilidade", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "renatinha_cinthya@hotmail.com": {"nome": "Renatinha Cinthya", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "dluanarodrigues2015@gmail.com": {"nome": "Luana Rodrigues", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "fabianabispo057@gmail.com": {"nome": "Fabiana Bispo", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "stephannye_14@hotmail.com": {"nome": "Stephannye", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "gilvaniamsf@gmail.com": {"nome": "Gilvania Msf", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "contato@pvacontabil.com.br": {"nome": "Pva Contabil", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "cleise_dr@hotmail.com": {"nome": "Cleise Dr", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "lelisribeirocrc@outlook.com": {"nome": "Lelis Ribeiro", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "fabio@elitegestaocontabil.com.br": {"nome": "Fabio", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "raposser@gmail.com": {"nome": "Raposser", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "sabrinadejesusoliveira1.9@gmail.com": {"nome": "Sabrina De Jesus Oliveira", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "rebecaprs10@gmail.com": {"nome": "Rebeca", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "jessicaandradeita@hotmail.com": {"nome": "Jessica Andrade", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "rjconsultoriacontabil@yahoo.com.br": {"nome": "Rj Consultoria Contabil", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "contabil.sandrabb@gmail.com": {"nome": "Sandra Bb", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "jeniffer.ribeirocontadora@gmail.com": {"nome": "Jeniffer Ribeiro", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}, "jcarvalho.cont@gmail.com": {"nome": "J Carvalho", "turma": "25.1", "tipo": "Manual", "data": "19/09/2026"}};
+
+function getAlunos() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return ALUNOS_PADRAO;
+}
+
+// ════════════════════════════════════════════════════
+// AUTH — SESSÃO
+// ════════════════════════════════════════════════════
+let sessionExpiry = null, sessionEmail = null, timerIv = null, lastRenew = 0;
+let adminUnlocked = false;
+
+window.addEventListener('load', () => {
+  try {
+    const s = JSON.parse(sessionStorage.getItem('cnae_sess'));
+    if (s && s.expiry > Date.now()) {
+      sessionEmail = s.email; sessionExpiry = s.expiry;
+      hideLogin(); startTimer(); return;
+    }
+  } catch(e) {}
+  showLogin();
+});
+
+function showLogin() {
+  document.getElementById('loginOverlay').classList.remove('hidden');
+  document.getElementById('userBar').classList.remove('visible');
+  document.getElementById('sessionWarn').classList.remove('visible');
+  setTimeout(() => document.getElementById('loginEmail').focus(), 120);
+}
+
+function hideLogin() {
+  document.getElementById('loginOverlay').classList.add('hidden');
+  const alunos = getAlunos();
+  const a = alunos[sessionEmail] || {};
+  const nome = (a.nome || sessionEmail).split(' ').slice(0,2).join(' ');
+  document.getElementById('userBar').classList.add('visible');
+  document.getElementById('userNameLabel').textContent = nome;
+  document.getElementById('userAvatar').textContent = nome.charAt(0).toUpperCase();
+}
+
+function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  if (!email) { showErr('Digite seu e-mail.'); return; }
+  if (!/\S+@\S+\.\S+/.test(email)) { showErr('E-mail inválido.'); return; }
+
+  const alunos = getAlunos();
+  if (alunos[email]) {
+    hideErr();
+    sessionEmail  = email;
+    sessionExpiry = Date.now() + SESSION_MS;
+    sessionStorage.setItem('cnae_sess', JSON.stringify({email, expiry: sessionExpiry}));
+    hideLogin();
+    startTimer();
+  } else {
+    showErr('E-mail não encontrado na lista de alunos.\nVerifique se é o mesmo e-mail usado na compra.');
+  }
+}
+
+function doLogout() {
+  sessionStorage.removeItem('cnae_sess');
+  sessionEmail = null; sessionExpiry = null;
+  if (timerIv) clearInterval(timerIv);
+  document.getElementById('sessionTimer').textContent = '';
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginError').classList.remove('show');
+  adminUnlocked = false;
+  document.getElementById('adminPanel').classList.remove('open');
+  showLogin();
+}
+
+function showErr(msg) {
+  const el = document.getElementById('loginError');
+  el.innerHTML = msg.replace('\n','<br>');
+  el.classList.add('show');
+}
+function hideErr() { document.getElementById('loginError').classList.remove('show'); }
+
+// ════════════════════════════════════════════════════
+// TIMER DE SESSÃO
+// ════════════════════════════════════════════════════
+function startTimer() {
+  if (timerIv) clearInterval(timerIv);
+  timerIv = setInterval(() => {
+    const rem = sessionExpiry - Date.now();
+    if (rem <= 0) { clearInterval(timerIv); doLogout(); return; }
+    const m = Math.floor(rem/60000), s = Math.floor((rem%60000)/1000);
+    document.getElementById('sessionTimer').textContent = `· ${m}m${String(s).padStart(2,'0')}s`;
+    document.getElementById('sessionWarn').classList.toggle('visible', rem < WARN_MS);
+    sessionStorage.setItem('cnae_sess', JSON.stringify({email:sessionEmail, expiry:sessionExpiry}));
+  }, 1000);
+}
+
+document.addEventListener('mousemove', renewSess, {passive:true});
+document.addEventListener('keydown',   renewSess, {passive:true});
+document.addEventListener('click',     renewSess, {passive:true});
+function renewSess() {
+  if (!sessionEmail) return;
+  const now = Date.now();
+  if (now - lastRenew < 10000) return;
+  lastRenew = now; sessionExpiry = now + SESSION_MS;
+}
+
+// ════════════════════════════════════════════════════
+// PAINEL ADMIN — UPLOAD CSV
+// ════════════════════════════════════════════════════
+function toggleAdmin() {
+  const p = document.getElementById('adminPanel');
+  p.classList.toggle('open');
+}
+
+async function confirmAdmin() {
+  const pass = document.getElementById('adminPass').value;
+  const enc = new TextEncoder().encode(pass);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+  if (hex === ADMIN_PASSWORD_HASH) {
+    adminUnlocked = true;
+    document.getElementById('adminPass').style.border = '2px solid #16a34a';
+    showUploadResult('✅ Senha correta! Agora faça o upload do CSV.', false);
+  } else {
+    adminUnlocked = false;
+    document.getElementById('adminPass').style.border = '2px solid #dc2626';
+    showUploadResult('❌ Senha incorreta.', true);
+  }
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.querySelector('.upload-area').classList.remove('drag');
+  if (e.dataTransfer.files[0]) handleCSV(e.dataTransfer.files[0]);
+}
+
+function handleCSV(file) {
+  if (!adminUnlocked) { showUploadResult('⚠️ Confirme a senha de administrador primeiro.', true); return; }
+  if (!file || !file.name.endsWith('.csv')) { showUploadResult('⚠️ Selecione um arquivo .csv', true); return; }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const lines = e.target.result.split('\n').filter(l => l.trim());
+      if (!lines.length) throw new Error('Arquivo vazio');
+
+      const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const emailIdx = header.findIndex(h => h.includes('email'));
+      const nameIdx  = header.findIndex(h => h.includes('name'));
+      const classIdx = header.findIndex(h => h.includes('class'));
+      const typeIdx  = header.findIndex(h => h.includes('access type') || h.includes('access'));
+      const dateIdx  = header.findIndex(h => h.includes('added on') || h.includes('added'));
+
+      if (emailIdx < 0) throw new Error('Coluna "Email" não encontrada');
+
+      const alunos = {};
+      let count = 0;
+      for (let i = 1; i < lines.length; i++) {
+        // parse CSV line respecting quoted fields
+        const cols = parseCSVLine(lines[i]);
+        const email = (cols[emailIdx]||'').trim().toLowerCase();
+        if (!email || !email.includes('@')) continue;
+        let nome = nameIdx >= 0 ? (cols[nameIdx]||'').trim() : '';
+        if (!nome) nome = email.split('@')[0];
+        nome = toTitleCase(nome);
+        alunos[email] = {
+          nome,
+          turma: classIdx >= 0 ? (cols[classIdx]||'').trim() : '',
+          tipo:  typeIdx  >= 0 ? (cols[typeIdx]||'').trim()  : '',
+          data:  dateIdx  >= 0 ? (cols[dateIdx]||'').trim().slice(0,10) : ''
+        };
+        count++;
+      }
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(alunos));
+      showUploadResult(`✅ Lista atualizada com sucesso! ${count} alunos carregados.`, false);
+    } catch(err) {
+      showUploadResult('❌ Erro ao processar CSV: ' + err.message, true);
+    }
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+function parseCSVLine(line) {
+  const result = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+    else { cur += c; }
+  }
+  result.push(cur);
+  return result;
+}
+
+function toTitleCase(s) {
+  return s.toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase());
+}
+
+function showUploadResult(msg, isErr) {
+  const el = document.getElementById('uploadResult');
+  el.textContent = msg;
+  el.className = 'upload-result show' + (isErr ? ' err' : '');
+}
+
+// ════════════════════════════════════════════════════
+const cnaeToItems = {
+  "6201500":"1.01,1.04,1.08","6190601":"1.03","1830003":"1.03","6311900":"1.03",
+  "6202300":"1.04,1.05","6203100":"1.04","6204000":"1.06","6209100":"1.07",
+  "6319400":"1.08","7210000":"2.01","7220700":"2.01","8211300":"3.03","8230002":"3.03",
+  "9003500":"3.03","3520402":"3.04","3514000":"3.04","4911600":"3.04","5221400":"3.04",
+  "4399102":"3.05","4399104":"3.05","7732202":"3.05","7739003":"3.05",
+  "8630502":"4.01,4.03","8630503":"4.01","8630599":"4.01","8640201":"4.02,4.03",
+  "8640202":"4.02,4.03,4.20,30.01","8640204":"4.02","8640205":"4.02","8640206":"4.02",
+  "8640207":"4.02","8640208":"4.02","8640209":"4.02","8640210":"4.02","8640211":"4.02",
+  "8640299":"4.02,4.09","8610101":"4.03","8610102":"4.03","8630501":"4.03",
+  "8630506":"4.03","8640203":"4.03","8640213":"4.03","8650099":"4.04,4.13",
+  "8690901":"4.05,4.09","8690903":"4.05","8650001":"4.06","4771702":"4.07",
+  "4771703":"4.07","8650004":"4.08","8650005":"4.08","8650006":"4.08",
+  "8640212":"4.09,4.19","8650007":"4.09","8690999":"4.09,4.11,4.19","8650002":"4.10",
+  "8630504":"4.12","3250703":"4.14","3250706":"4.14","8650003":"4.15,4.16",
+  "8711501":"4.17","8711502":"4.17","8711503":"4.17","8711504":"4.17","8711505":"4.17",
+  "8720401":"4.17","8730101":"4.17","8730102":"4.17","8720499":"4.17","8730199":"4.17",
+  "8630507":"4.18,4.19","8640214":"4.19","8690902":"4.19","8621601":"4.21",
+  "8621602":"4.21","8622400":"4.21","8712300":"4.21","6550200":"4.22,4.23,5.09",
+  "7490103":"5.01","7500100":"5.01,5.02,5.03,5.04,5.05,5.06,5.07",
+  "0162801":"5.04","8011102":"5.08","9609203":"5.08","0162802":"5.08",
+  "0162803":"5.08","0162899":"5.08,7.13,17.01","8690904":"6.01","9602501":"6.01",
+  "9602502":"6.01,6.02","9609201":"6.02,6.03,6.05","9609206":"6.02",
+  "9609299":"6.02,14.01","9609205":"6.03","8592901":"6.04","8591100":"6.04",
+  "9313100":"6.04","2391501":"7.01,14.05","7119701":"7.01,7.20","7119702":"7.01,7.20",
+  "7111100":"7.01","7112000":"7.01,7.03,7.19,17.09,28.01","2330305":"7.02",
+  "4211101":"7.02,7.05","4211102":"7.02,7.05","4221901":"7.02","4221902":"7.02",
+  "4221904":"7.02","4222701":"7.02","4222702":"7.02","4292801":"7.02","4292802":"7.02",
+  "4299501":"7.02","4311802":"7.02","4322301":"7.02,7.05","4322302":"7.02,14.01",
+  "4322303":"7.02,14.01,14.06","4329103":"7.02,14.01","4330401":"7.02",
+  "4330403":"7.02,7.05,7.06,14.07","4330404":"7.02,7.05","4330405":"7.02,7.05,7.06,7.07,7.08",
+  "4399101":"7.02","4399103":"7.02,7.05","4399105":"7.02","3321000":"7.02,14.06",
+  "4120400":"7.02,7.05","4212000":"7.02,7.05","4213800":"7.02","4223500":"7.02",
+  "4299599":"7.02,7.17","4312600":"7.02","4313400":"7.02","4319300":"7.02",
+  "4321500":"7.02,7.05","4329199":"7.02,7.05","4330499":"7.02,7.05,7.06",
+  "4391600":"7.02","4399199":"7.02,7.05","4311801":"7.04","4221903":"7.05",
+  "4221905":"7.05","9102302":"7.05","4330402":"7.06,14.13","4329105":"7.08",
+  "3831901":"7.09","3839401":"7.09","3811400":"7.09","3812200":"7.09","3821100":"7.09,7.12",
+  "3822000":"7.09,7.12","3831999":"7.09","3832700":"7.09","3839499":"7.09","8129000":"7.09,7.10",
+  "3702900":"7.10","8121400":"7.10","7410202":"7.11","8130300":"7.11",
+  "0161001":"7.13","8122200":"7.13","0161003":"7.16","0220906":"7.16","0230600":"7.16",
+  "3900500":"7.18","4291000":"7.18","7119799":"7.20,31.01","7490102":"7.21,14.01",
+  "0910600":"7.21","0990401":"7.21","0990402":"7.21","0990403":"7.21","7490199":"7.22,17.01,28.01,35.01,36.01",
+  "8511200":"8.01","8512100":"8.01","8513900":"8.01","8520100":"8.01","8531700":"8.01",
+  "8532500":"8.01","8533300":"8.01","8541400":"8.01","8542200":"8.01","8550302":"8.02",
+  "8592902":"8.02","8592903":"8.02","8599601":"8.02","8599602":"8.02","8599603":"8.02",
+  "8599604":"8.02","8599605":"8.02","8592999":"8.02","8593700":"8.02","8599699":"8.02",
+  "9312300":"8.02","5510801":"9.01","5510802":"9.01","5510803":"9.01","5590601":"9.01",
+  "5590602":"9.01","5590603":"9.01","5590699":"9.01","4929903":"9.02","4929904":"9.02",
+  "7911200":"9.02","7912100":"9.02,9.03","7990200":"9.02","6612603":"10.01",
+  "6622300":"10.01,10.02","6612601":"10.02","6612602":"10.02","6612604":"10.02",
+  "6612605":"10.02,10.05","7490104":"10.02,10.04","7490105":"10.02,10.03,37.01",
+  "8299705":"10.02","9609202":"10.02","6619399":"10.02","6022502":"10.03","6911703":"10.03",
+  "5811500":"10.03","4512902":"10.05","5250803":"10.05","6821801":"10.05",
+  "6821802":"10.05","8299702":"10.05","5232000":"10.06","6391700":"10.07",
+  "7312200":"10.08","4512901":"10.09","4530706":"10.09","4542101":"10.09",
+  "4618401":"10.09","4618402":"10.09","4618403":"10.09","6619303":"10.09",
+  "4611700":"10.09","4612500":"10.09","4613300":"10.09","4614100":"10.09",
+  "4615000":"10.09","4616800":"10.09","4617600":"10.09","4618499":"10.09",
+  "4619200":"10.09","5913800":"10.10","5223100":"11.01","5240199":"11.01",
+  "9329899":"11.01,12.17","8011101":"11.02","8020000":"11.02","5229099":"11.03",
+  "4930204":"11.04","5211701":"11.04,20.01","5211702":"11.04","5231102":"11.04",
+  "5250804":"11.04","5211799":"11.04,20.01","5212500":"11.04,20.01","9001901":"12.01,12.13",
+  "9001999":"12.01,12.03,12.04,12.05,12.13,12.14,12.15","5914600":"12.02,12.16",
+  "9001904":"12.03,12.13","9319101":"12.11","9319199":"12.11","9001902":"12.07,12.12,12.13,12.14,12.15,12.16",
+  "9001903":"12.07,12.13,12.15","9001905":"12.10","9200302":"12.10",
+  "9329801":"12.06","8230001":"12.08,17.10","9329802":"12.09","9329803":"12.09",
+  "9329804":"12.09","9200399":"12.09,19.01","6021700":"12.13","1830001":"13.02",
+  "5912001":"13.02","5912002":"13.02","5920100":"13.02","5911101":"13.03","9609204":"13.03",
+  "1830002":"13.03","5912099":"13.03","7420001":"13.03","7420002":"13.03",
+  "7420003":"13.03","7420004":"13.03","8219901":"13.04","7420005":"13.04",
+  "1741901":"13.05","1811301":"13.05","1811302":"13.05","1812100":"13.05",
+  "1813001":"13.05","1813099":"13.05","1821100":"13.05","1822901":"13.05",
+  "2930103":"14.01","3312102":"14.01","3312103":"14.01","3312104":"14.01",
+  "3313901":"14.01","3313902":"14.01","3314701":"14.01","3314702":"14.01",
+  "3314703":"14.01","3314704":"14.01","3314705":"14.01","3314706":"14.01",
+  "3314707":"14.01","3314708":"14.01","3314709":"14.01","3314710":"14.01",
+  "3314711":"14.01","3314712":"14.01","3314713":"14.01","3314714":"14.01",
+  "3314715":"14.01","3314716":"14.01","3314717":"14.01","3314718":"14.01",
+  "3314719":"14.01","3314720":"14.01","3314721":"14.01","3314722":"14.01",
+  "3316301":"14.01","3316302":"14.01","3317101":"14.01","3317102":"14.01",
+  "4329104":"14.01","4329105":"14.01","4751202":"14.01","9529101":"14.01",
+  "9529103":"14.01","9529104":"14.01","9529105":"14.01,14.05","9529106":"14.01",
+  "3311200":"14.01","3313999":"14.01","3314799":"14.01","3315500":"14.01",
+  "3319800":"14.01","4520001":"14.01","4520003":"14.01","4520004":"14.01",
+  "4520005":"14.01,14.05","4520007":"14.01","4543900":"14.01","6190699":"14.01,14.06",
+  "9512600":"14.01,14.02","9521500":"14.01","9529199":"14.01,14.09","9511800":"14.02",
+  "2950600":"14.03","2212900":"14.04","4520006":"14.04","2391502":"14.05",
+  "2391503":"14.05","2599302":"14.05","2722802":"14.05","3250709":"14.05",
+  "9002702":"14.05","1340501":"14.05,14.09","2539001":"14.05","2539002":"14.05",
+  "4520002":"14.05,14.12","8292000":"14.05","4329101":"14.06","4329102":"14.06",
+  "3329599":"14.06","1822999":"14.08","1340599":"14.09,14.10",
+  "1411802":"14.09","1412602":"14.09","1412603":"14.09","1413401":"14.09",
+  "1413402":"14.09","1413403":"14.09","1531902":"14.09","9601701":"14.10",
+  "9601702":"14.10","9601703":"14.10","1340502":"14.10","4520008":"14.11",
+  "2399101":"14.13","2599301":"14.13","3329501":"14.13","1622699":"14.13",
+  "2512800":"14.13","2542000":"14.13","6424701":"15.01,15.02,15.03,15.04,15.05,15.06,15.07,15.08,15.09,15.10,15.11,15.12,15.13,15.14,15.15,15.16,15.17,15.18",
+  "6424702":"15.01","6424703":"15.01,15.02,15.03,15.04,15.05,15.06,15.07,15.08,15.09,15.10,15.11,15.12,15.13,15.14,15.15,15.16,15.17,15.18",
+  "6424704":"15.01,15.02,15.03,15.04,15.05,15.06,15.07,15.08,15.09,15.10,15.11,15.12,15.13,15.14,15.15,15.16,15.17,15.18",
+  "6435203":"15.01,15.07,15.08,15.09,15.18","6470101":"15.01","6470102":"15.01",
+  "6470103":"15.01","6499901":"15.01","6499902":"15.01","6619305":"15.01",
+  "6421200":"15.01,15.02,15.03,15.04,15.05,15.06,15.07,15.08,15.09,15.10,15.11,15.12,15.13,15.14,15.15,15.16,15.17,15.18",
+  "6422100":"15.01,15.02,15.03,15.04,15.05,15.06,15.07,15.08,15.09,15.10,15.11,15.12,15.13,15.14,15.15,15.16,15.17,15.18",
+  "6423900":"15.01,15.02,15.03,15.04,15.05,15.06,15.07,15.08,15.09,15.10,15.11,15.12,15.13,15.14,15.15,15.16,15.17,15.18",
+  "6431000":"15.01,15.06,15.08,15.09,15.12,15.18","6432800":"15.01,15.07,15.08,15.16",
+  "6433600":"15.01,15.02,15.07,15.08,15.16","6434400":"15.01","6613400":"15.01",
+  "6435202":"15.02,15.08,15.18","6450600":"15.02,15.07","6619301":"15.10,15.12",
+  "6619302":"15.10","6436100":"15.08","6437900":"15.08","6440900":"15.09",
+  "6438701":"15.13","6438799":"15.13","4912402":"16.01","4912403":"16.01",
+  "4921301":"16.01","4929901":"16.01","4930201":"16.01","4930203":"16.01",
+  "4930204":"16.01","5021101":"16.01","5091201":"16.01","5099801":"16.01",
+  "4923001":"16.01","4923002":"16.01","4924800":"16.01","4940000":"16.01",
+  "4950700":"16.01","5022001":"16.01","5112999":"16.01","5229002":"16.01",
+  "6920602":"17.01,17.09,17.16","7320300":"17.01,17.21","7020400":"17.01,17.03,17.17,17.20",
+  "8299701":"17.01","0311604":"17.01,20.01","0312404":"17.01,20.01",
+  "0321305":"17.01,20.01","0322107":"17.01","6399200":"17.01","7319004":"17.01",
+  "9430800":"17.01","7490101":"17.02","5229001":"17.02","5819100":"17.02",
+  "5821200":"17.02","5822100":"17.02","5823900":"17.02","5829800":"17.02",
+  "8219999":"17.02","8220200":"17.02","8299799":"17.02","7810800":"17.04",
+  "7820500":"17.05","7830200":"17.05","8111700":"17.05","5911102":"17.06",
+  "7311400":"17.06","7319001":"17.06","7319002":"17.06","7319003":"17.06",
+  "7319099":"17.06","5310502":"17.08","7740300":"17.08,17.12","6621501":"17.09,17.16,18.01,28.01",
+  "6911702":"17.09,17.15","7119704":"17.09","7120100":"17.09","5620102":"17.11",
+  "6611801":"17.12","6611802":"17.12","6611803":"17.12","6611804":"17.12",
+  "6493000":"17.12","6630400":"17.12","6822600":"17.12","8660700":"17.12",
+  "8299704":"17.13","6911701":"17.14","6912500":"21.01","5221400":"22.01",
+  "7410201":"23.01","4329101":"24.01","8299703":"24.01","9529102":"24.01",
+  "3299003":"24.01","3299004":"24.01","9603303":"25.01","9603304":"25.01",
+  "9603305":"25.01","9603399":"25.01","9603302":"25.02","6511102":"25.03",
+  "9603301":"25.04","5310501":"26.01","5320201":"26.01","5320202":"26.01",
+  "8012900":"26.01","8800600":"27.01","6621502":"17.18","6920601":"17.19",
+  "8291100":"17.22","6491300":"17.23","8599699":"17.24","9102301":"38.01",
+  "3211601":"39.01","9002701":"40.01","8640202":"30.01","7210000":"30.01",
+  "9311500":"3.03","5812300":"17.02","5813100":"17.02","5811500":"17.02"
+};
+
+// ============================================================
+// DATA: Item LC116 → NBS/cClassTrib
+// ============================================================
+const itemData = {"1.01":{"desc":"Análise E Desenvolvimento De Sistemas.","nbs_list":[{"nbs":"1.1502.10.00","desc_nbs":"Serviços de projeto, desenvolvimento e instalação de aplicativos e programas não personalizados (não customizados)","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS.","indop":"100301","ps_onerosa":"S","adq_exterior":"N","local_inc":"Domicílio principal do adquirente"},{"nbs":"1.1502.20.00","desc_nbs":"Serviços de projeto e desenvolvimento, adaptação e instalação de aplicativos e programas personalizados (customizados)"},{"nbs":"1.1502.40.00","desc_nbs":"Serviços de projeto e desenvolvimento de estruturas e conteúdo de bancos de dados"},{"nbs":"1.1502.50.00","desc_nbs":"Serviços de integração de sistemas em tecnologia da informação (TI)"},{"nbs":"1.1502.90.00","desc_nbs":"Serviços de projeto e desenvolvimento de aplicativos e programas em tecnologia da informação (TI) não classificados em subposições anteriores"},{"nbs":"1.1503.00.00","desc_nbs":"Serviços de projeto e desenvolvimento de redes em tecnologia da informação (TI)","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS."},{"nbs":"1.1504.00.00","desc_nbs":"Serviços de projeto e desenvolvimento de topografias de circuitos integrados"},{"nbs":"1.1505.00.00","desc_nbs":"Serviços de projeto de circuitos integrados"},{"nbs":"1.1507.10.00","desc_nbs":"Serviços de gerenciamento de redes em tecnologia da informação (TI)"},{"nbs":"1.1507.20.00","desc_nbs":"Serviços de gerenciamento de sistemas computacionais"},{"nbs":"1.1507.90.00","desc_nbs":"Serviços de gerenciamento de infraestrutura em tecnologia da informação (TI) não classificados em subposições anteriores"}],"extra_ctrib":[{"cClassTrib":200043,"nome_cClassTrib":"Fornecimento à administração pública dos serviços e dos bens relativos à soberania (Anexo XI)"},{"cClassTrib":200044,"nome_cClassTrib":"Operações e prestações de serviços de segurança da informação e segurança cibernética desenvolvidos por sociedade que tenha sócio brasileiro (Anexo XI)"}]},"1.02":{"desc":"Programação.","nbs_list":[{"nbs":"1.1502.10.00","desc_nbs":"Serviços de projeto, desenvolvimento e instalação de aplicativos e programas não personalizados (não customizados)","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS.","indop":"100301","ps_onerosa":"S","adq_exterior":"N","local_inc":"Domicílio principal do adquirente"},{"nbs":"1.1502.20.00","desc_nbs":"Serviços de projeto e desenvolvimento, adaptação e instalação de aplicativos e programas personalizados (customizados)"},{"nbs":"1.1502.90.00","desc_nbs":"Serviços de projeto e desenvolvimento de aplicativos e programas em tecnologia da informação (TI) não classificados em subposições anteriores"}],"extra_ctrib":[{"cClassTrib":200043,"nome_cClassTrib":"Fornecimento à administração pública dos serviços e dos bens relativos à soberania (Anexo XI)"},{"cClassTrib":200044,"nome_cClassTrib":"Operações e prestações de serviços de segurança da informação e segurança cibernética desenvolvidos por sociedade que tenha sócio brasileiro (Anexo XI)"}]},"1.03":{"desc":"Processamento, Armazenamento Ou Hospedagem De Dados, Textos, Imagens, Vídeos, Páginas Eletrônicas, Aplicativos E Sistemas De Informação, Entre Outros Formatos, E Congêneres.","nbs_list":[{"nbs":"1.1506.10.00","desc_nbs":"Serviços de hospedagem de sítios eletrônicos na rede mundial de computadores","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS.","indop":"100301","ps_onerosa":"S","adq_exterior":"N","local_inc":"Domicílio principal do adquirente"},{"nbs":"1.1506.21.00","desc_nbs":"Serviços de hospedagem de aplicativos e programas software como serviço (SaaS)"},{"nbs":"1.1506.22.00","desc_nbs":"Serviços de fornecimento de infraestrutura como serviço (IaaS)"},{"nbs":"1.1506.23.00","desc_nbs":"Serviços de fornecimento de plataformas como serviço (PaaS)"},{"nbs":"1.1506.29.00","desc_nbs":"Serviços de hospedagem de aplicativos e programas não classificados em subposições anteriores"},{"nbs":"1.1506.90.00","desc_nbs":"Serviços de hospedagem e de disponibilização de infraestrutura em tecnologia da informação (TI) não classificados em subposições anteriores"},{"nbs":"1.1509.00.00","desc_nbs":"Serviços de processamento de dados"}],"extra_ctrib":[]},"1.04":{"desc":"Elaboração De Programas De Computadores, Inclusive De Jogos Eletrônicos.","nbs_list":[{"nbs":"1.1502.10.00","desc_nbs":"Serviços de projeto, desenvolvimento e instalação de aplicativos e programas não personalizados (não customizados)","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS.","indop":"100301","ps_onerosa":"S","adq_exterior":"N","local_inc":"Domicílio principal do adquirente"},{"nbs":"1.1502.20.00","desc_nbs":"Serviços de projeto e desenvolvimento, adaptação e instalação de aplicativos e programas personalizados (customizados)"},{"nbs":"1.1502.90.00","desc_nbs":"Serviços de projeto e desenvolvimento de aplicativos e programas em tecnologia da informação (TI) não classificados em subposições anteriores"}],"extra_ctrib":[{"cClassTrib":200043,"nome_cClassTrib":"Fornecimento à administração pública dos serviços e dos bens relativos à soberania (Anexo XI)"},{"cClassTrib":200044,"nome_cClassTrib":"Operações e prestações de serviços de segurança da informação e segurança cibernética desenvolvidos por sociedade que tenha sócio brasileiro (Anexo XI)"}]},"1.05":{"desc":"Licenciamento Ou Cessão De Direito De Uso De Programas De Computação.","nbs_list":[{"nbs":"1.1103.21.00","desc_nbs":"Licenciamento de direitos de produção, distribuição ou comercialização de programas de computador (software)","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS.","indop":"100501","ps_onerosa":"S","adq_exterior":"N","local_inc":"Domicílio principal do adquirente"},{"nbs":"1.1103.22.00","desc_nbs":"Licenciamento de direitos de uso de programas de computador (software)"},{"nbs":"1.1103.23.00","desc_nbs":"Licenciamento de direitos sobre bancos de dados"},{"nbs":"1.1103.29.00","desc_nbs":"Licenciamento de direitos sobre programas de computador (software) e bancos de dados não classificado em subposições anteriores"},{"nbs":"1.1106.20.00","desc_nbs":"Cessão temporária de direitos sobre programas de computador (software)"},{"nbs":"1.1107.20.00","desc_nbs":"Cessão definitiva de direitos sobre programas de computador (software)"}],"extra_ctrib":[]},"1.06":{"desc":"Assessoria E Consultoria Em Informática.","nbs_list":[{"nbs":"1.1501.10.00","desc_nbs":"Serviços de consultoria em tecnologia da informação (TI)","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS.","indop":"100301","ps_onerosa":"S","adq_exterior":"N","local_inc":"Domicílio principal do adquirente"},{"nbs":"1.1501.20.00","desc_nbs":"Serviços de segurança em tecnologia da informação (TI)"},{"nbs":"1.1507.10.00","desc_nbs":"Serviços de gerenciamento de redes em tecnologia da informação (TI)","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS."},{"nbs":"1.1507.20.00","desc_nbs":"Serviços de gerenciamento de sistemas computacionais"},{"nbs":"1.1507.90.00","desc_nbs":"Serviços de gerenciamento de infraestrutura em tecnologia da informação (TI) não classificados em subposições anteriores"},{"nbs":"1.1510.00.00","desc_nbs":"Serviços de tecnologia da informação (TI) não classificados em subposições anteriores"}],"extra_ctrib":[{"cClassTrib":200043,"nome_cClassTrib":"Fornecimento à administração pública dos serviços e dos bens relativos à soberania (Anexo XI)"},{"cClassTrib":200044,"nome_cClassTrib":"Operações e prestações de serviços de segurança da informação e segurança cibernética desenvolvidos por sociedade que tenha sócio brasileiro (Anexo XI)"}]},"1.07":{"desc":"Suporte Técnico Em Informática.","nbs_list":[{"nbs":"1.1501.30.00","desc_nbs":"Serviços de suporte em tecnologia da informação (TI)","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS.","indop":"50101","local_inc":"local da prestação"},{"nbs":"1.1508.00.00","desc_nbs":"Serviços de manutenção de aplicativos e programas","indop":"100301","ps_onerosa":"S","adq_exterior":"N","local_inc":"Domicílio principal do adquirente"},{"nbs":"1.1502.10.00","desc_nbs":"Serviços de projeto, desenvolvimento e instalação de aplicativos e programas não personalizados (não customizados)"},{"nbs":"1.1502.20.00","desc_nbs":"Serviços de projeto e desenvolvimento, adaptação e instalação de aplicativos e programas personalizados (customizados)"}],"extra_ctrib":[]},"1.08":{"desc":"Planejamento, Confecção, Manutenção E Atualização De Páginas Eletrônicas.","nbs_list":[{"nbs":"1.1502.30.00","desc_nbs":"Serviços de projeto e desenvolvimento de estruturas e conteúdo de páginas eletrônicas","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS.","indop":"100301","ps_onerosa":"S","adq_exterior":"N","local_inc":"Domicílio principal do adquirente"}],"extra_ctrib":[{"cClassTrib":200040,"nome_cClassTrib":"Fornecimento de serviços de comunicação institucional à administração pública"}]},"1.09":{"desc":"Disponibilização, Sem Cessão Definitiva, De Conteúdos De Áudio, Vídeo, Imagem E Texto Por Meio Da Internet.","nbs_list":[{"nbs":"1.1703.10.00","desc_nbs":"Serviços de oferta de livros, jornais, periódicos, diretórios e malas diretas de acesso imediato (on-line)","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS.","indop":"100301","ps_onerosa":"S","adq_exterior":"N","local_inc":"Domicílio principal do adquirente"},{"nbs":"1.1703.21.00","desc_nbs":"Serviços de oferta de áudio para download"},{"nbs":"1.1703.22.00","desc_nbs":"Serviços de oferta de áudio de conteúdo contínuo (streaming)"},{"nbs":"1.1703.31.00","desc_nbs":"Serviços de oferta de arquivos contendo filmes e vídeos para download"},{"nbs":"1.1703.32.00","desc_nbs":"Serviços de oferta de filmes e vídeos de conteúdo contínuo (streaming)"},{"nbs":"1.1703.91.00","desc_nbs":"Serviços de oferta de jogos de acesso imediato (on-line)"},{"nbs":"1.1703.99.00","desc_nbs":"Serviços de oferta de outros conteúdos de acesso imediato (on-line) não classificados em subposições anteriores"}],"extra_ctrib":[]},"2.01":{"desc":"Serviços De Pesquisas E Desenvolvimento De Qualquer Natureza.","nbs_list":[{"nbs":"1.1201.11.00","desc_nbs":"Serviços de pesquisa e desenvolvimento em ciências físicas","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS.","indop":"100301","ps_onerosa":"S","adq_exterior":"N","local_inc":"Domicílio principal do adquirente"},{"nbs":"1.1201.12.00","desc_nbs":"Serviços de pesquisa e desenvolvimento em química e biologia","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS."},{"nbs":"1.1201.19.00","desc_nbs":"Serviços de pesquisa e desenvolvimento em ciências não classificadas em subposições anteriores","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS."},{"nbs":"1.1201.20.00","desc_nbs":"Serviços de pesquisa e desenvolvimento em biotecnologia","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS."},{"nbs":"1.1201.31.00","desc_nbs":"Serviços de pesquisa e desenvolvimento em Tecnologia da Informação e Comunicação (TIC)","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS."},{"nbs":"1.1201.40.00","desc_nbs":"Serviços de pesquisa e desenvolvimento em ciências médicas, odontológicas e farmacêuticas","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS."},{"nbs":"1.1201.50.00","desc_nbs":"Serviços de pesquisa e desenvolvimento em ciências agrárias","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS."},{"nbs":"1.1201.90.00","desc_nbs":"Serviços de pesquisa e desenvolvimento em ciências, engenharia e tecnologia não classificados em subposições anteriores","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS."},{"nbs":"1.1202.10.00","desc_nbs":"Serviços de pesquisa e desenvolvimento em psicologia","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS."},{"nbs":"1.1202.90.00","desc_nbs":"Serviços de pesquisa e desenvolvimento em ciências sociais e humanidades não classificadas em subposições anteriores","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS."},{"nbs":"1.1203.00.00","desc_nbs":"Serviços de pesquisa e desenvolvimento interdisciplinar","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS."}],"extra_ctrib":[{"cClassTrib":200016,"nome_cClassTrib":"Prestação de serviços de pesquisa e desenvolvimento por Instituição Científica, Tecnológica e de Inovação (ICT)"}]}};
+
+// Partial item data for remaining items — abbreviated version to reduce file size
+// All items from the xlsx are available via the full search
+const extraItems = {"3.02":{"desc":"Cessão De Direito De Uso De Marcas E De Sinais De Propaganda.","nbs_list":[{"nbs":"1.1103.33.00","desc_nbs":"Licenciamento de direitos de autor de obras publicitárias","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS.","indop":"100501","ps_onerosa":"S","adq_exterior":"N","local_inc":"Domicílio principal do adquirente"},{"nbs":"1.1104.20.00","desc_nbs":"Licenciamento de direitos sobre marcas"},{"nbs":"1.1106.33.00","desc_nbs":"Cessão temporária de direitos de autor de obras publicitárias"},{"nbs":"1.1108.20.00","desc_nbs":"Cessão definitiva de direitos sobre marcas"}],"extra_ctrib":[]},"3.03":{"desc":"Exploração De Salões De Festas, Centro De Convenções, Escritórios Virtuais, Stands, Quadras Esportivas, Estádios, Ginásios, Auditórios.","nbs_list":[{"nbs":"1.1805.31.00","desc_nbs":"Serviços de reservas para centros de convenções, auditórios e salas de exposições","cClassTrib":200027,"nome_cClassTrib":"Operações de locação, cessão onerosa e arrendamento de bens imóveis","indop":"20101","local_inc":"local do imóvel"},{"nbs":"1.1806.61.00","desc_nbs":"Serviços de assistência e organização de convenções"},{"nbs":"1.1806.62.00","desc_nbs":"Serviços de assistência e organização de feiras de negócios"},{"nbs":"1.1806.63.00","desc_nbs":"Serviços de assistência e organização de exposições e outros eventos"},{"nbs":"1.2508.00.00","desc_nbs":"Serviços recreativos, culturais e desportivos não classificados em posições anteriores"}],"extra_ctrib":[]},"3.04":{"desc":"Locação, Sublocação, Arrendamento, Direito De Passagem Ou Permissão De Uso De Ferrovia, Rodovia, Postes, Cabos, Dutos E Condutos.","nbs_list":[{"nbs":"1.1001.12.10","desc_nbs":"Serviços de administração e locação de ferrovia, rodovia, postes, cabos, dutos e condutos","cClassTrib":200027,"nome_cClassTrib":"Operações de locação, cessão onerosa e arrendamento de bens imóveis","indop":"20201","local_inc":"local do imóvel"}],"extra_ctrib":[]},"3.05":{"desc":"Cessão De Andaimes, Palcos, Coberturas E Outras Estruturas De Uso Temporário.","nbs_list":[{"nbs":"1.0105.70.00","desc_nbs":"Serviços de andaimes","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS.","indop":"50101","local_inc":"local da prestação"},{"nbs":"1.0105.50.00","desc_nbs":"Serviços de montagem de estruturas de aço","indop":"50101","local_inc":"local da prestação"}],"extra_ctrib":[{"cClassTrib":200039,"nome_cClassTrib":"Fornecimento dos serviços e o licenciamento ou cessão dos direitos destinados às produções nacionais artísticas (Anexo X)"}]},"4.01":{"desc":"Medicina E Biomedicina.","nbs_list":[{"nbs":"1.2301.22.00","desc_nbs":"Serviços médicos especializados","cClassTrib":200029,"nome_cClassTrib":"Fornecimento dos serviços de saúde humana (Anexo III)","indop":"30101","local_inc":"local da prestação"}],"extra_ctrib":[]},"4.02":{"desc":"Análises Clínicas, Patologia, Eletricidade Médica, Radioterapia, Quimioterapia, Ultra-Sonografia, Ressonância Magnética, Radiologia, Tomografia E Congêneres.","nbs_list":[{"nbs":"1.2301.93.00","desc_nbs":"Serviços laboratoriais"}],"extra_ctrib":[]},"4.03":{"desc":"Hospitais, Clínicas, Laboratórios, Sanatórios, Manicômios, Casas De Saúde, Prontos-Socorros, Ambulatórios E Congêneres.","nbs_list":[{"nbs":"1.2301.11.00","desc_nbs":"Serviços cirúrgicos"}],"extra_ctrib":[]},"4.04":{"desc":"Instrumentação Cirúrgica.","nbs_list":[{"nbs":"1.2301.11.00","desc_nbs":"Serviços cirúrgicos"}],"extra_ctrib":[]},"4.05":{"desc":"Acupuntura.","nbs_list":[{"nbs":"1.2301.99.00","desc_nbs":"Outros serviços de saúde humana não classificados em subposições anteriores"}],"extra_ctrib":[]},"4.06":{"desc":"Enfermagem, Inclusive Serviços Auxiliares.","nbs_list":[{"nbs":"1.2301.91.00","desc_nbs":"Serviços de enfermagem"}],"extra_ctrib":[]},"4.07":{"desc":"Serviços Farmacêuticos.","nbs_list":[{"nbs":"1.2301.99.00","desc_nbs":"Outros serviços de saúde humana não classificados em subposições anteriores"}],"extra_ctrib":[]},"4.08":{"desc":"Terapia Ocupacional, Fisioterapia E Fonoaudiologia.","nbs_list":[{"nbs":"1.2301.92.00","desc_nbs":"Serviços de fisioterapia"}],"extra_ctrib":[]},"4.09":{"desc":"Terapias De Qualquer Espécie Destinadas Ao Tratamento Físico, Orgânico E Mental.","nbs_list":[{"nbs":"1.2301.99.00","desc_nbs":"Outros serviços de saúde humana não classificados em subposições anteriores"}],"extra_ctrib":[]},"4.10":{"desc":"Nutrição.","nbs_list":[{"nbs":"1.2301.99.00","desc_nbs":"Outros serviços de saúde humana não classificados em subposições anteriores"}],"extra_ctrib":[]},"4.11":{"desc":"Obstetrícia.","nbs_list":[{"nbs":"1.2301.12.00","desc_nbs":"Serviços ginecológicos e obstétricos"}],"extra_ctrib":[]},"4.12":{"desc":"Odontologia.","nbs_list":[{"nbs":"1.2301.23.00","desc_nbs":"Serviços odontológicos","cClassTrib":200029,"nome_cClassTrib":"Fornecimento dos serviços de saúde humana (Anexo III)","indop":"30101","local_inc":"local da prestação"}],"extra_ctrib":[]},"4.13":{"desc":"Ortóptica.","nbs_list":[{"nbs":"1.2301.99.00","desc_nbs":"Outros serviços de saúde humana não classificados em subposições anteriores"}],"extra_ctrib":[]},"4.14":{"desc":"Próteses Sob Encomenda.","nbs_list":[{"nbs":"1.2301.99.00","desc_nbs":"Outros serviços de saúde humana não classificados em subposições anteriores","ps_onerosa":"S","adq_exterior":"N"}],"extra_ctrib":[]},"4.15":{"desc":"Psicanálise.","nbs_list":[{"nbs":"1.2301.22.00","desc_nbs":"Serviços médicos especializados"}],"extra_ctrib":[]},"4.16":{"desc":"Psicologia.","nbs_list":[{"nbs":"1.2301.98.00","desc_nbs":"Serviços de psicologia","indop":"30101","local_inc":"local da prestação"}],"extra_ctrib":[]},"4.17":{"desc":"Casas De Repouso E De Recuperação, Creches, Asilos E Congêneres.","nbs_list":[{"nbs":"1.2201.11.00","desc_nbs":"Serviços de creche ou entidade equivalente","indop":"30101"}],"extra_ctrib":[]},"4.18":{"desc":"Inseminação Artificial, Fertilização In Vitro E Congêneres.","nbs_list":[{"nbs":"1.2301.21.00","desc_nbs":"Serviços de clínica médica","indop":"030101"}],"extra_ctrib":[]},"4.19":{"desc":"Bancos De Sangue, Leite, Pele, Olhos, Óvulos, Sêmen E Congêneres.","nbs_list":[{"nbs":"1.2301.95.00","desc_nbs":"Serviços de bancos de material biológico humano","indop":"301001"}],"extra_ctrib":[]},"4.20":{"desc":"Coleta De Sangue, Leite, Tecidos, Sêmen, Órgãos E Materiais Biológicos De Qualquer Espécie.","nbs_list":[{"nbs":"1.2301.95.00","desc_nbs":"Serviços de bancos de material biológico humano","indop":"030101"}],"extra_ctrib":[]},"4.21":{"desc":"Unidade De Atendimento, Assistência Ou Tratamento Móvel E Congêneres.","nbs_list":[{"nbs":"1.2301.96.00","desc_nbs":"Serviços de ambulância","indop":"030101"}],"extra_ctrib":[]},"4.22":{"desc":"Planos De Medicina De Grupo Ou Individual E Convênios Para Prestação De Assistência Médica, Hospitalar, Odontológica E Congêneres.","nbs_list":[{"nbs":"1.0910.10.00","desc_nbs":"Serviços de planos privados de assistência à saúde","cClassTrib":11002,"nome_cClassTrib":"Planos de assistência à saúde","indop":"100301","ps_onerosa":"S","adq_exterior":"N","local_inc":"Domicílio principal do adquirente"}],"extra_ctrib":[]},"4.23":{"desc":"Outros Planos De Saúde Que Se Cumprem Através De Serviços De Terceiros Contratados, Credenciados, Cooperados Ou Apenas Pagos Pelo Operador Do Plano Mediante Indicação Deste.","nbs_list":[{"nbs":"1.0910.10.00","desc_nbs":"Serviços de planos privados de assistência à saúde","indop":"100301","ps_onerosa":"S","adq_exterior":"N"}],"extra_ctrib":[]},"5.01":{"desc":"Medicina Veterinária E Zootecnia.","nbs_list":[{"nbs":"1.1405.12.00","desc_nbs":"Serviços de atendimento, assistência ou tratamento para animais domésticos","cClassTrib":200052,"nome_cClassTrib":"Prestação de serviços de profissões intelectuais","indop":"50101","local_inc":"local da prestação"},{"nbs":"1.1405.22.00","desc_nbs":"Serviços de atendimento, assistência ou tratamento para animais de corte","cClassTrib":200038,"nome_cClassTrib":"Fornecimento dos insumos agropecuários e aquícolas (Anexo IX)","indop":"50101"}],"extra_ctrib":[]},"6.01":{"desc":"Barbearia, Cabeleireiros, Manicuros, Pedicuros E Congêneres.","nbs_list":[{"nbs":"1.2602.10.00","desc_nbs":"Serviços de cabeleireiros e barbeiros","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS.","indop":"30101","local_inc":"local da prestação"},{"nbs":"1.2602.20.00","desc_nbs":"Serviços de manicure, pedicure e tratamento cosmético","indop":"30101"}],"extra_ctrib":[]},"7.01":{"desc":"Engenharia, Agronomia, Agrimensura, Arquitetura, Geologia, Urbanismo, Paisagismo E Congêneres.","nbs_list":[{"nbs":"1.1402.11.00","desc_nbs":"Serviços de consultoria em arquitetura","cClassTrib":200052,"nome_cClassTrib":"Prestação de serviços de profissões intelectuais","indop":"100301","ps_onerosa":"S","adq_exterior":"N","local_inc":"Domicílio principal do adquirente"},{"nbs":"1.1402.12.00","desc_nbs":"Serviços de arquitetura para projetos de construções residenciais"},{"nbs":"1.1403.10.00","desc_nbs":"Serviços de consultoria em engenharia"},{"nbs":"1.1403.21.10","desc_nbs":"Serviços de engenharia para projetos de construção residencial"},{"nbs":"1.1403.23.00","desc_nbs":"Serviços de engenharia para projetos de infraestrutura de transportes"},{"nbs":"1.1404.11.00","desc_nbs":"Serviços de consultoria geológica e geofísica","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS."}],"extra_ctrib":[]},"7.02":{"desc":"Execução, Por Administração, Empreitada Ou Subempreitada, De Obras De Construção Civil, Hidráulica Ou Elétrica E De Outras Obras Semelhantes.","nbs_list":[{"nbs":"1.0101.11.00","desc_nbs":"Serviços de construção de edificações residenciais de um e dois pavimentos","cClassTrib":200046,"nome_cClassTrib":"Operações com bens imóveis","indop":"20201","local_inc":"local do imóvel"},{"nbs":"1.0101.12.00","desc_nbs":"Serviços de construção de edificações residenciais com mais de dois pavimentos","cClassTrib":200046,"nome_cClassTrib":"Operações com bens imóveis"},{"nbs":"1.0101.21.00","desc_nbs":"Serviços de construção de edificações industriais","cClassTrib":200046,"nome_cClassTrib":"Operações com bens imóveis"},{"nbs":"1.0101.22.00","desc_nbs":"Serviços de construção de edificações comerciais","cClassTrib":200046,"nome_cClassTrib":"Operações com bens imóveis"},{"nbs":"1.0102.11.00","desc_nbs":"Serviços de construção de autoestradas, ruas e estradas","cClassTrib":200046,"nome_cClassTrib":"Operações com bens imóveis"},{"nbs":"1.0102.34.00","desc_nbs":"Serviços de construção de barragens","cClassTrib":200046,"nome_cClassTrib":"Operações com bens imóveis"},{"nbs":"1.0105.12.00","desc_nbs":"Serviços de fundação","cClassTrib":200046,"nome_cClassTrib":"Operações com bens imóveis"},{"nbs":"1.0105.60.00","desc_nbs":"Serviços de alvenaria","cClassTrib":200046,"nome_cClassTrib":"Operações com bens imóveis"},{"nbs":"1.0106.11.00","desc_nbs":"Serviços de instalação de fiação elétrica e componentes","cClassTrib":200046,"nome_cClassTrib":"Operações com bens imóveis"},{"nbs":"1.0107.30.00","desc_nbs":"Serviços de pintura","cClassTrib":200046,"nome_cClassTrib":"Operações com bens imóveis"}],"extra_ctrib":[{"cClassTrib":200045,"nome_cClassTrib":"Operações relacionadas a projetos de reabilitação urbana de zonas históricas e de áreas críticas de recuperação e reconversão urbanística"},{"cClassTrib":200038,"nome_cClassTrib":"Fornecimento dos insumos agropecuários e aquícolas (Anexo IX)"}]},"8.01":{"desc":"Ensino Regular Pré-Escolar, Fundamental, Médio E Superior.","nbs_list":[{"nbs":"1.2201.11.00","desc_nbs":"Serviços de creche ou entidade equivalente","cClassTrib":200028,"nome_cClassTrib":"Fornecimento dos serviços de educação (Anexo II)","indop":"30101","local_inc":"local da prestação"},{"nbs":"1.2201.20.00","desc_nbs":"Serviços de ensino fundamental","indop":"30101"},{"nbs":"1.2201.30.00","desc_nbs":"Serviços de ensino médio","indop":"30101"},{"nbs":"1.2204.10.00","desc_nbs":"Serviços educacionais de graduação","indop":"30101","local_inc":"local da prestação"},{"nbs":"1.2204.20.00","desc_nbs":"Serviços educacionais de pós-graduação","cClassTrib":200028,"nome_cClassTrib":"Fornecimento dos serviços de educação (Anexo II)","indop":"30101","local_inc":"local da prestação"}],"extra_ctrib":[{"cClassTrib":200025,"nome_cClassTrib":"Fornecimento dos serviços de educação relacionados ao Programa Universidade para Todos (Prouni)"}]},"8.02":{"desc":"Instrução, Treinamento, Orientação Pedagógica E Educacional, Avaliação De Conhecimentos De Qualquer Natureza.","nbs_list":[{"nbs":"1.2205.11.00","desc_nbs":"Serviços de educação com enfoque cultural","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS.","indop":"30101","local_inc":"local da prestação"},{"nbs":"1.2205.13.00","desc_nbs":"Serviços de educação em línguas estrangeiras e de sinais","cClassTrib":200028,"nome_cClassTrib":"Fornecimento dos serviços de educação (Anexo II)","indop":"30101","local_inc":"local da prestação"},{"nbs":"1.2205.19.00","desc_nbs":"Serviços de educação, inclusive treinamento não classificados em subposições anteriores","indop":"30101","local_inc":"local da prestação"}],"extra_ctrib":[]},"9.01":{"desc":"Hospedagem De Qualquer Natureza Em Hotéis, Apart-Hotéis, Motéis, Pensões E Congêneres.","nbs_list":[{"nbs":"1.0303.11.00","desc_nbs":"Serviços de hospedagem em quartos ou unidades de hospedagem para visitantes, com serviços diários de faxina","cClassTrib":200048,"nome_cClassTrib":"Hotelaria, Parques de Diversão e Parques Temáticos","indop":"30101","local_inc":"local da prestação"},{"nbs":"1.0303.12.00","desc_nbs":"Serviços de hospedagem em quartos ou unidades de hospedagem para visitantes, sem serviços diários de faxina"},{"nbs":"1.0303.20.00","desc_nbs":"Serviços de acampamentos turísticos (camping)"},{"nbs":"1.0303.90.00","desc_nbs":"Serviços de hospedagem para visitantes não classificados em subposições anteriores"}],"extra_ctrib":[]},"9.02":{"desc":"Agenciamento, Organização, Promoção, Intermediação E Execução De Programas De Turismo, Passeios, Viagens, Excursões, Hospedagens E Congêneres.","nbs_list":[{"nbs":"1.1805.40.00","desc_nbs":"Serviços de operadoras de turismo","cClassTrib":200051,"nome_cClassTrib":"Agências de Turismo","indop":"100301","ps_onerosa":"S","adq_exterior":"N","local_inc":"Domicílio principal do adquirente"},{"nbs":"1.1805.11.00","desc_nbs":"Serviços de reservas para transporte aéreo de passageiros"},{"nbs":"1.1805.21.00","desc_nbs":"Serviços de reservas de hospedagem, exceto em unidades compartilhadas"},{"nbs":"1.1805.62.00","desc_nbs":"Serviços de informação a visitantes","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS."}],"extra_ctrib":[]},"14.01":{"desc":"Lubrificação, Limpeza, Lustração, Revisão, Carga E Recarga, Conserto, Restauração, Blindagem, Manutenção E Conservação De Máquinas, Veículos, Aparelhos, Equipamentos, Motores, Elevadores Ou De Qualquer Objeto.","nbs_list":[{"nbs":"1.2001.10.00","desc_nbs":"Serviços de manutenção e reparação de produtos metálicos, exceto maquinários e equipamentos","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS.","indop":"50101","local_inc":"local da prestação"},{"nbs":"1.2001.31.10","desc_nbs":"Serviços de manutenção e reparação de veículos rodoviários motorizados","indop":"50101"},{"nbs":"1.2001.33.00","desc_nbs":"Serviços de manutenção e reparação de veículos aquaviários","indop":"50101"},{"nbs":"1.2001.34.10","desc_nbs":"Serviços de manutenção e reparação de aeronaves","indop":"50101"},{"nbs":"1.2001.50.00","desc_nbs":"Serviços de manutenção e reparação de maquinários e equipamentos de uso industrial","indop":"50101"},{"nbs":"1.2001.70.00","desc_nbs":"Serviços de manutenção e reparação de equipamentos e aparelhos de telecomunicações","indop":"50101"},{"nbs":"1.2001.81.00","desc_nbs":"Serviços de manutenção e reparação de aparelhos eletroeletrônicos domésticos","indop":"50101"},{"nbs":"1.2001.89.00","desc_nbs":"Serviços de manutenção e reparação de outros maquinários e equipamentos","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS.","indop":"50101"}],"extra_ctrib":[]},"15.01":{"desc":"Administração De Fundos Quaisquer, De Consórcio, De Cartão De Crédito Ou Débito E Congêneres.","nbs_list":[{"nbs":"1.0901.40.00","desc_nbs":"Serviços de cartão de crédito","cClassTrib":10002,"nome_cClassTrib":"Operações do serviço financeiro","indop":"100301","ps_onerosa":"S","adq_exterior":"N","local_inc":"Domicílio principal do adquirente"},{"nbs":"1.0905.21.00","desc_nbs":"Serviços de gestão e administração de carteiras de ativos"},{"nbs":"1.0905.22.00","desc_nbs":"Serviços de administração fundos de investimento e fundos de pensão"}],"extra_ctrib":[]},"15.09":{"desc":"Arrendamento Mercantil (Leasing) De Quaisquer Bens.","nbs_list":[{"nbs":"1.0901.51.11","desc_nbs":"Arrendamento mercantil financeiro de veículos rodoviários automotores para o transporte de passageiros","cClassTrib":10002,"nome_cClassTrib":"Operações do serviço financeiro","indop":"100301","ps_onerosa":"S","adq_exterior":"N","local_inc":"Domicílio principal do adquirente"},{"nbs":"1.0901.51.24","desc_nbs":"Arrendamento mercantil financeiro de computadores"},{"nbs":"1.1101.11.00","desc_nbs":"Arrendamento mercantil operacional ou locação de veículos rodoviários automotores para o transporte de até oito passageiros, sem operador"}],"extra_ctrib":[]},"16.01":{"desc":"Serviços De Transporte Coletivo Municipal Rodoviário, Metroviário, Ferroviário E Aquaviário De Passageiros.","nbs_list":[{"nbs":"1.0401.11.19","desc_nbs":"Serviços de transporte rodoviário local regular de passageiros","cClassTrib":400001,"nome_cClassTrib":"Fornecimento de serviços de transporte público coletivo de passageiros rodoviário e metroviário","indop":"60101","local_inc":"local da prestação"},{"nbs":"1.0401.16.10","desc_nbs":"Serviços de transporte ferroviário local de passageiros","cClassTrib":200021,"nome_cClassTrib":"Serviços de transporte público coletivo de passageiros ferroviário e hidroviário"},{"nbs":"1.0401.16.20","desc_nbs":"Serviços de transporte metroviário (metrô) local de passageiros","cClassTrib":400001,"nome_cClassTrib":"Fornecimento de serviços de transporte público coletivo de passageiros rodoviário e metroviário"}],"extra_ctrib":[]},"17.01":{"desc":"Assessoria Ou Consultoria De Qualquer Natureza; Análise, Exame, Pesquisa, Coleta, Compilação E Fornecimento De Dados E Informações De Qualquer Natureza.","nbs_list":[{"nbs":"1.1401.11.00","desc_nbs":"Serviços de consultoria em gestão estratégica","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS.","indop":"100301","ps_onerosa":"S","adq_exterior":"N","local_inc":"Domicílio principal do adquirente"},{"nbs":"1.1401.14.00","desc_nbs":"Serviços de consultoria em gestão de marketing"},{"nbs":"1.1401.19.00","desc_nbs":"Serviços de consultoria em gestão empresarial não classificados em subposições anteriores"},{"nbs":"1.1303.10.00","desc_nbs":"Serviços de consultoria tributária para pessoas jurídicas"},{"nbs":"1.1807.00.00","desc_nbs":"Pesquisas de mercado e serviços de pesquisa de opinião pública"}],"extra_ctrib":[]},"17.06":{"desc":"Propaganda E Publicidade, Inclusive Promoção De Vendas, Planejamento De Campanhas Ou Sistemas De Publicidade.","nbs_list":[{"nbs":"1.1406.11.00","desc_nbs":"Serviços de campanhas publicitárias","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS.","indop":"100301","ps_onerosa":"S","adq_exterior":"N","local_inc":"Domicílio principal do adquirente"},{"nbs":"1.1406.12.00","desc_nbs":"Serviços de marketing direto e mala direta"},{"nbs":"1.1406.19.00","desc_nbs":"Serviços de propaganda não classificados em subposições anteriores"}],"extra_ctrib":[]},"17.14":{"desc":"Advocacia.","nbs_list":[{"nbs":"1.1301.10.00","desc_nbs":"Serviços de representação e consultoria jurídica criminal","cClassTrib":200052,"nome_cClassTrib":"Prestação de serviços de profissões intelectuais","indop":"100301","ps_onerosa":"S","adq_exterior":"N","local_inc":"Domicílio principal do adquirente"},{"nbs":"1.1301.20.00","desc_nbs":"Serviços de representação e consultoria jurídica em outras áreas do direito"},{"nbs":"1.1301.90.00","desc_nbs":"Serviços jurídicos não classificados em subposições anteriores"}],"extra_ctrib":[]},"17.19":{"desc":"Contabilidade, Inclusive Serviços Técnicos E Auxiliares.","nbs_list":[{"nbs":"1.1302.21.00","desc_nbs":"Serviços de contabilidade","cClassTrib":200052,"nome_cClassTrib":"Prestação de serviços de profissões intelectuais","indop":"100301","ps_onerosa":"S","adq_exterior":"N","local_inc":"Domicílio principal do adquirente"},{"nbs":"1.1302.22.00","desc_nbs":"Serviços de escrituração mercantil"},{"nbs":"1.1302.23.00","desc_nbs":"Serviços de folha de pagamento"}],"extra_ctrib":[]},"21.01":{"desc":"Serviços De Registros Públicos, Cartorários E Notariais.","nbs_list":[{"nbs":"1.1304.00.00","desc_nbs":"Serviços notariais e de registro","cClassTrib":1,"nome_cClassTrib":"Situações tributadas integralmente pelo IBS e CBS.","indop":"100301","ps_onerosa":"S","adq_exterior":"N","local_inc":"Domicílio principal do adquirente"}],"extra_ctrib":[]},"22.01":{"desc":"Serviços De Exploração De Rodovia Mediante Cobrança De Preço Ou Pedágio Dos Usuários.","nbs_list":[{"nbs":"1.0604.21.00","desc_nbs":"Serviços de operação de rodovias","cClassTrib":2,"nome_cClassTrib":"Exploração de via","indop":"80101","local_inc":"via explorada"},{"nbs":"1.0604.22.00","desc_nbs":"Serviços de operação de pontes e túneis"}],"extra_ctrib":[]}};
+
+// Merge all data
+const allItems = Object.assign({}, itemData, extraItems);
+
+// ============================================================
+// MODE & SEARCH LOGIC
+// ============================================================
+let mode = 'item';
+
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['item','cnae','desc'][i] === m));
+  const hints = {
+    item: 'Digite o código do item LC 116 (ex: 1.01, 7.02, 17.01…)',
+    cnae: 'Digite o código CNAE 2.1 (ex: 6201-5/00 ou 62015000)',
+    desc: 'Digite palavras-chave da descrição do serviço'
+  };
+  const placeholders = {
+    item: 'Ex: 1.01, 7.02, 17.14, 4.12…',
+    cnae: 'Ex: 6201-5/00 ou 62015000',
+    desc: 'Ex: advocacia, construção civil, saúde…'
+  };
+  document.getElementById('hintText').textContent = hints[m];
+  document.getElementById('searchInput').placeholder = placeholders[m];
+  document.getElementById('searchInput').value = '';
+  closeSugg();
+  clearResult();
+}
+
+function normCnae(s) { return s.replace(/[^0-9]/g,'').padStart(7,'0'); }
+function normItem(s) { return s.trim().replace(/\s+/g,''); }
+function fmtCnae(k) { return k.slice(0,4)+'-'+k[4]+'/'+k.slice(5); }
+
+// Mapa inverso: item → lista de CNAEs
+const itemToCnaes = {};
+Object.entries(cnaeToItems).forEach(([cnae, items]) => {
+  items.split(',').forEach(item => {
+    const k = item.trim();
+    if (!itemToCnaes[k]) itemToCnaes[k] = [];
+    if (!itemToCnaes[k].includes(cnae)) itemToCnaes[k].push(cnae);
+  });
+});
+
+function getItemsForCnae(raw) {
+  const key = normCnae(raw);
+  return cnaeToItems[key] ? cnaeToItems[key].split(',').map(i=>i.trim()) : [];
+}
+
+function getCnaesForItem(itemKey) {
+  return itemToCnaes[itemKey] || [];
+}
+
+function searchByItem(q) {
+  const k = normItem(q);
+  return allItems[k] ? [k] : [];
+}
+
+// Normaliza texto: remove acentos e deixa minúsculo, pra busca não depender de acentuação
+function normText(s){return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
+// Monta o texto pesquisável de um item: descrição do item + descrições dos NBS vinculados
+function itemSearchText(k){
+  const d = allItems[k];
+  let txt = normText(d.desc);
+  (d.nbs_list||[]).forEach(n=>{
+    txt += ' ' + normText(n.desc_nbs||'');
+    if (n.nome_cClassTrib) txt += ' ' + normText(n.nome_cClassTrib);
+  });
+  return txt;
+}
+// Busca por descrição: procura em desc do item E nas descrições NBS, com palavras parciais e sem acento
+function searchByDesc(q) {
+  const terms = normText(q).split(/\s+/).filter(t => t.length >= 2);
+  if (!terms.length) return [];
+  const results = Object.keys(allItems).filter(k => {
+    const txt = itemSearchText(k);
+    return terms.some(t => txt.includes(t));
+  });
+  // Ordena: quem tem mais termos correspondendo aparece primeiro
+  results.sort((a, b) => {
+    const tA = itemSearchText(a);
+    const tB = itemSearchText(b);
+    return terms.filter(t => tB.includes(t)).length - terms.filter(t => tA.includes(t)).length;
+  });
+  return results;
+}
+
+// Mapa reverso item -> CNAEs vinculados (construído uma vez)
+function buildItemToCnae() {
+  const map = {};
+  Object.entries(cnaeToItems).forEach(([cnaeKey, itemsStr]) => {
+    const fmt = cnaeKey.slice(0,4) + '-' + cnaeKey[4] + '/' + cnaeKey.slice(5);
+    itemsStr.split(',').map(i => i.trim()).forEach(item => {
+      if (!map[item]) map[item] = [];
+      if (!map[item].includes(fmt)) map[item].push(fmt);
+    });
+  });
+  return map;
+}
+const itemToCnae = buildItemToCnae();
+
+// ============================================================
+// SUGGESTIONS
+// ============================================================
+function onInput() {
+  const v = document.getElementById('searchInput').value;
+  if (v.length < 2) { closeSugg(); return; }
+  let suggs = [];
+  if (mode === 'item') {
+    suggs = Object.keys(allItems).filter(k => k.startsWith(v) || k === normItem(v)).slice(0, 8)
+      .map(k => ({ code: k, desc: allItems[k].desc.slice(0, 65) }));
+  } else if (mode === 'cnae') {
+    const norm = normCnae(v);
+    const matches = Object.keys(cnaeToItems).filter(k => k.startsWith(norm.slice(0, 4)));
+    suggs = matches.slice(0, 6).map(k => {
+      const display = k.slice(0,4) + '-' + k[4] + '/' + k.slice(5);
+      return { code: display, desc: 'Itens: ' + cnaeToItems[k] };
+    });
+  } else {
+    const terms = normText(v).split(/\s+/).filter(t => t.length >= 2);
+    suggs = Object.keys(allItems).filter(k => {
+      const txt = itemSearchText(k);
+      return terms.some(t => txt.includes(t));
+    }).slice(0, 8).map(k => ({ code: k, desc: allItems[k].desc.slice(0, 65) }));
+  }
+  const box = document.getElementById('suggBox');
+  if (!suggs.length) { closeSugg(); return; }
+  box.innerHTML = suggs.map(s =>
+    `<div class="suggestion-item" onclick="pickSugg('${s.code}')"><span>${s.code}</span>${s.desc}</div>`
+  ).join('');
+  box.classList.add('open');
+}
+
+function pickSugg(code) {
+  document.getElementById('searchInput').value = code;
+  closeSugg();
+  doSearch();
+}
+
+function closeSugg() { document.getElementById('suggBox').classList.remove('open'); }
+function onKey(e) { if (e.key === 'Enter') { closeSugg(); doSearch(); } if (e.key === 'Escape') closeSugg(); }
+document.addEventListener('click', e => { if (!e.target.closest('.input-wrap')) closeSugg(); });
+
+// ============================================================
+// MAIN SEARCH
+// ============================================================
+function doSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q) return;
+  clearResult(false);
+
+  let itemKeys = [];
+  let cnaeRaw = null;
+
+  if (mode === 'cnae') {
+    cnaeRaw = q;
+    itemKeys = getItemsForCnae(q);
+  } else if (mode === 'item') {
+    itemKeys = searchByItem(q);
+  } else {
+    itemKeys = searchByDesc(q);
+  }
+
+  if (!itemKeys.length) {
+    document.getElementById('noResult').classList.add('show');
+    return;
+  }
+  if (itemKeys.length === 1) {
+    showItem(itemKeys[0], cnaeRaw);
+  } else {
+    showMulti(itemKeys, cnaeRaw);
+  }
+}
+
+function showMulti(keys, cnaeRaw) {
+  const div = document.getElementById('multiCards');
+  div.innerHTML = keys.map(k => {
+    const d = allItems[k] || { desc: '—', nbs_list: [] };
+    const cnaes = itemToCnae[k] || [];
+    const cnaeInfo = cnaeRaw
+      ? `CNAE: ${cnaeRaw}`
+      : (cnaes.length ? `CNAEs: ${cnaes.slice(0,3).join(' · ')}${cnaes.length > 3 ? ` +${cnaes.length-3}` : ''}` : '');
+    return `<div class="multi-card" onclick="showItem('${k}','${cnaeRaw||''}')">
+      <div class="mc-code">Item ${k}</div>
+      <div class="mc-desc">${d.desc.slice(0,120)}${d.desc.length > 120 ? '…' : ''}</div>
+      <div class="mc-cnae">${d.nbs_list.length} código(s) NBS${cnaeInfo ? ' · ' + cnaeInfo : ''}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('multiResult').classList.add('show');
+}
+
+function showItem(itemKey, cnaeRaw) {
+  document.getElementById('multiResult').classList.remove('show');
+  const d = allItems[itemKey];
+  if (!d) { document.getElementById('noResult').classList.add('show'); return; }
+
+  const cnaesDoItem = itemToCnae[itemKey] || [];
+
+  // ── Header ──
+  let headerHtml = `<div class="lbl">Código do Serviço LC 116</div>
+    <div class="item-code">Item ${itemKey}</div>
+    <div class="item-desc">${d.desc}</div>`;
+
+  if (cnaeRaw) {
+    headerHtml += `<div style="margin-top:10px"><span class="cnae-tag">CNAE pesquisado: ${cnaeRaw}</span></div>`;
+  }
+  if (cnaesDoItem.length) {
+    headerHtml += `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px;align-items:center;">
+      <span style="font-size:.75rem;color:#6b7280;">CNAEs vinculados:</span>
+      ${cnaesDoItem.map(c => `<span class="cnae-tag" style="background:#475569;">${c}</span>`).join('')}
+    </div>`;
+  }
+  document.getElementById('resultHeader').innerHTML = headerHtml;
+
+  // ── NBS list ──
+  const nbsGrid = document.getElementById('nbsGrid');
+  const unique = [];
+  const seen = new Set();
+  d.nbs_list.forEach(n => { if (!seen.has(n.nbs)) { seen.add(n.nbs); unique.push(n); } });
+  document.getElementById('nbsTitle').innerHTML =
+    `<span>Códigos NBS Correlacionados</span><span class="badge">${unique.length}</span>`;
+
+  nbsGrid.innerHTML = unique.map(n => {
+    let meta = '';
+    if (n.cClassTrib)      meta += `<span class="meta-tag meta-classtrib">cClassTrib: ${n.cClassTrib}</span>`;
+    if (n.indop)           meta += `<span class="meta-tag meta-indop">IndOp: ${n.indop}</span>`;
+    if (n.local_inc)       meta += `<span class="meta-tag meta-local">📍 ${n.local_inc}</span>`;
+    if (n.ps_onerosa)      meta += `<span class="meta-tag meta-ps">P/S Onerosa: ${n.ps_onerosa} | Adq. Ext.: ${n.adq_exterior||'—'}</span>`;
+    if (n.nome_cClassTrib) meta += `<span class="meta-tag" style="background:#f1f5f9;color:#475569;font-size:.7rem;">${n.nome_cClassTrib}</span>`;
+    return `<div class="nbs-card">
+      <div class="nbs-code">${n.nbs}</div>
+      <div class="nbs-desc">${n.desc_nbs}</div>
+      <div class="nbs-meta">${meta}</div>
+    </div>`;
+  }).join('');
+
+  // ── Extra cClassTrib ──
+  const extraSec = document.getElementById('extraCtribSection');
+  extraSec.innerHTML = '';
+  if (d.extra_ctrib && d.extra_ctrib.length) {
+    const uniqEC = [];
+    const ecSeen = new Set();
+    d.extra_ctrib.forEach(e => {
+      const key = e.cClassTrib + '|' + e.nome_cClassTrib;
+      if (!ecSeen.has(key)) { ecSeen.add(key); uniqEC.push(e); }
+    });
+    extraSec.innerHTML =
+      `<div class="section-title" style="margin-top:8px"><span>cClassTrib Adicionais (situações especiais)</span><span class="badge">${uniqEC.length}</span></div>`
+      + uniqEC.map(e => `<div class="extra-card"><span class="ec-code">${e.cClassTrib}</span><span class="ec-desc">${e.nome_cClassTrib}</span></div>`).join('');
+  }
+
+  // ── Se veio de busca CNAE, mostra outros itens vinculados ──
+  if (cnaeRaw) {
+    const todosItens = getItemsForCnae(cnaeRaw);
+    const outros = todosItens.filter(k => k !== itemKey);
+    if (outros.length) {
+      extraSec.innerHTML += `
+        <div class="section-title" style="margin-top:20px">
+          <span>Outros Itens de Serviço neste CNAE</span>
+          <span class="badge">${outros.length}</span>
+        </div>
+        ${outros.map(k => {
+          const od = allItems[k];
+          const desc = od ? od.desc.slice(0, 100) + (od.desc.length > 100 ? '…' : '') : '—';
+          return `<div class="extra-card" style="cursor:pointer;border-color:#bfdbfe;background:#eff6ff;"
+            onclick="showItem('${k}','${cnaeRaw}')">
+            <span class="ec-code" style="color:#1a4b8c;">Item ${k}</span>
+            <span class="ec-desc" style="color:#374151;">${desc}</span>
+          </div>`;
+        }).join('')}`;
+    }
+  }
+
+  document.getElementById('resultSection').classList.add('show');
+}
+
+function clearResult(resetInput = true) {
+  document.getElementById('resultSection').classList.remove('show');
+  document.getElementById('noResult').classList.remove('show');
+  document.getElementById('multiResult').classList.remove('show');
+  if (resetInput) document.getElementById('searchInput').value = '';
+}
+
+
+</script>
+</body>
+</html>
