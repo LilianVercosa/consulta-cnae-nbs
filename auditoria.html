@@ -457,7 +457,20 @@ $('audCopy').addEventListener('click', async () => {
 $('audToSim').addEventListener('click', () => {
   const linhas = lerLinhas($('audInput').value);
   if (!linhas.length) return;
-  servicos = linhas.map((r) => ({ nome: r.servico, cct: Calc.normCct(r.cct), valor: 10000 }));
+  // Se as linhas vieram dos XML, leva junto as notas, o total e o nº das notas; senão começa em zero para você informar
+  const chave = (lc, nbs, cct) => [Calc.normLc(lc), Calc.normNbs(nbs), Calc.normCct(cct)].join('|');
+  const porChave = new Map((typeof xmlGrupos !== 'undefined' ? xmlGrupos : []).map((x) => [chave(x.lc, x.nbs, x.cct), x]));
+  const usados = new Set();
+  servicos = linhas.map((r) => {
+    const x = porChave.get(chave(r.lc, r.nbs, r.cct));
+    if (x && !usados.has(x)) { usados.add(x); return { nome: r.servico, cct: Calc.normCct(r.cct), notas: x.notas, nums: x.nums, totalNotas: Calc.roundHalfEven(x.total, 2), valor: 0, manual: false }; }
+    return { nome: r.servico, cct: Calc.normCct(r.cct), valor: 0 };
+  });
+  if (usados.size && xmlResumo) {
+    simMeses = xmlResumo.nMeses; $('simMeses').value = simMeses;
+    $('simMesesHint').textContent = `Período das notas: ${fmtMes(xmlResumo.periodo)} (${xmlResumo.nMeses} ${xmlResumo.nMeses === 1 ? 'mês' : 'meses'} com nota). Ajuste se o cliente ficou algum mês sem emitir.`;
+    if (xmlResumo.issMedio) $('pIss').value = Calc.roundHalfEven(xmlResumo.issMedio, 2);
+  }
   $('simRegime').value = $('audRegime').value;
   desenharServicos(); aplicarAno(false); simular(); abrir('simulador');
 });
@@ -734,7 +747,7 @@ $('xmlToSim').addEventListener('click', () => {
 });
 $('xmlToAud').addEventListener('click', () => {
   if (!xmlGrupos.length) return;
-  $('audInput').value = xmlGrupos.map((x) => [`Item ${x.lc || '?'} (${x.notas} nota${x.notas > 1 ? 's' : ''})`, x.lc, x.nbs ? Calc.fmtNbs(x.nbs) : '', x.cct, x.cst, ''].join(';')).join('\n');
+  $('audInput').value = xmlGrupos.map((x) => [`Item ${x.lc || '?'} (${x.notas > 1 ? x.notas + ' notas' : '1 nota'}${x.nums.length ? ': nº ' + x.nums.slice(0,6).join(', ') + (x.nums.length > 6 ? '…' : '') : ''})`, x.lc, x.nbs ? Calc.fmtNbs(x.nbs) : '', x.cct, x.cst, ''].join(';')).join('\n');
   if (xmlResumo) $('audRegime').value = xmlResumo.simples ? 'simples' : 'geral';
   abrir('auditoria'); auditar();
 });
