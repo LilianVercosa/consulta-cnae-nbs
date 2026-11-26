@@ -154,11 +154,6 @@ footer{max-width:1080px;margin:0 auto;padding:0 16px 32px;color:var(--tinta-suav
       <input type="file" id="xmlFiles" accept=".xml,text/xml,application/xml" multiple hidden>
       <div id="xmlOut" class="hidden">
         <div class="xmlsum" id="xmlChips"></div>
-        <div class="cols" style="margin-bottom:10px">
-          <label for="xmlBase">Valor levado ao simulador
-            <select id="xmlBase"><option value="media">Média mensal do período</option><option value="total">Total do período</option></select>
-          </label>
-        </div>
         <div class="tablewrap"><table id="xmlTable"></table></div>
         <div class="btns" style="margin-top:10px">
           <button class="btn" id="xmlToSim" type="button">Usar no simulador</button>
@@ -196,11 +191,18 @@ footer{max-width:1080px;margin:0 auto;padding:0 16px 32px;color:var(--tinta-suav
 
     <div class="panel">
       <h2>Serviços do cliente</h2>
-      <p class="lead">Informe o faturamento mensal de cada serviço e a cClassTrib que ele usa.</p>
+      <p class="lead">Informe o faturamento mensal de cada serviço e a cClassTrib que ele usa. Nos serviços que vieram dos XML, o faturamento mensal é o total das notas dividido pelo número de meses do período.</p>
+      <div class="cols hidden" id="simMesesBox" style="margin-bottom:12px">
+        <label for="simMeses">Dividir o total das notas por quantos meses?
+          <input id="simMeses" type="number" min="1" step="1" inputmode="numeric" value="1" style="max-width:140px">
+          <span class="hint" id="simMesesHint"></span>
+        </label>
+      </div>
       <div class="tablewrap">
         <table id="simTable">
-          <thead><tr><th>Serviço</th><th>cClassTrib</th><th class="num">Faturamento mensal (R$)</th><th></th></tr></thead>
+          <thead><tr><th>Serviço</th><th>cClassTrib</th><th class="num">Notas</th><th class="num">Total das notas (R$)</th><th class="num">Faturamento mensal (R$)</th><th></th></tr></thead>
           <tbody></tbody>
+          <tfoot></tfoot>
         </table>
       </div>
       <div class="btns" style="margin-top:10px"><button class="btn sec" id="simAdd" type="button">Adicionar serviço</button></div>
@@ -473,21 +475,51 @@ function aplicarAno(reset=true){
   ['pCbs','pIbsUf','pIbsMun'].forEach((id) => $(id).disabled = a.fixo);
   $('pCbsHint').textContent = ano === '2026' ? 'Alíquota de teste fixada em lei.' : (ano <= '2028' ? 'Estimativa: a lei ainda não fixou a CBS de ' + ano + '.' : 'Informe a alíquota do ano.');
 }
+let simMeses = 1;
+function mensalDe(s){ return s.manual || s.totalNotas == null ? s.valor : Calc.roundHalfEven(s.totalNotas / Math.max(simMeses,1), 2); }
 function desenharServicos(){
   const tb = $('simTable').querySelector('tbody');
+  const temXml = servicos.some((s) => s.totalNotas != null);
+  $('simMesesBox').classList.toggle('hidden', !temXml);
+  servicos.forEach((s) => { s.valor = mensalDe(s); });
   const opts = (sel) => IX ? [...IX.ct.values()].filter((t) => t.tipo === 'Padrão' || t.tipo === 'Sem alíquota')
      .map((t) => `<option value="${t.cd}" ${t.cd === sel ? 'selected' : ''}>${t.cd} · ${esc(t.desc.slice(0,70))}${t.red ? ' (−' + t.red + '%)' : ''}</option>`).join('') : '';
   tb.innerHTML = servicos.map((s,i) => `<tr>
     <td><input aria-label="Serviço ${i+1}" data-i="${i}" data-f="nome" value="${esc(s.nome)}"></td>
     <td><select aria-label="cClassTrib do serviço ${i+1}" data-i="${i}" data-f="cct" style="min-width:240px">${IX && IX.ct.has(s.cct) ? '' : `<option value="${esc(s.cct)}" selected>${esc(s.cct || 'escolha')} · não encontrada</option>`}${opts(s.cct)}</select></td>
-    <td class="num"><input aria-label="Faturamento do serviço ${i+1}" data-i="${i}" data-f="valor" type="number" step="0.01" inputmode="decimal" value="${s.valor}" style="text-align:right"></td>
+    <td class="num">${s.totalNotas != null ? s.notas : '—'}</td>
+    <td class="num">${s.totalNotas != null ? fmtBRL.format(s.totalNotas) : '—'}</td>
+    <td class="num"><input aria-label="Faturamento mensal do serviço ${i+1}" data-i="${i}" data-f="valor" type="number" step="0.01" inputmode="decimal" value="${s.valor}" style="text-align:right">${s.totalNotas != null ? `<div class="hint">${s.manual ? 'ajustado à mão · <a href="#" data-reset="'+i+'" style="color:var(--dourado)">recalcular</a>' : '= total ÷ ' + simMeses + (simMeses === 1 ? ' mês' : ' meses')}</div>` : ''}</td>
     <td><button class="del" type="button" data-del="${i}" aria-label="Remover serviço ${i+1}">×</button></td></tr>`).join('');
+  const totNotas = servicos.reduce((a,s) => a + (s.totalNotas || 0), 0);
+  const qtNotas = servicos.reduce((a,s) => a + (s.notas || 0), 0);
+  const totMensal = servicos.reduce((a,s) => a + (s.valor || 0), 0);
+  $('simTable').querySelector('tfoot').innerHTML = `<tr><td colspan="2">Total</td><td class="num">${temXml ? qtNotas : ''}</td><td class="num">${temXml ? fmtBRL.format(totNotas) : ''}</td><td class="num">${fmtBRL.format(totMensal)}</td><td></td></tr>`;
   tb.querySelectorAll('[data-f]').forEach((el) => el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', (e) => {
     const s = servicos[+e.target.dataset.i]; const f = e.target.dataset.f;
-    s[f] = f === 'valor' ? (parseFloat(e.target.value) || 0) : e.target.value; simular();
+    if (f === 'valor') {
+      s.valor = parseFloat(e.target.value) || 0;
+      if (s.totalNotas != null && !s.manual) { s.manual = true; const h = e.target.parentNode.querySelector('.hint'); if (h) h.innerHTML = 'ajustado à mão · <a href="#" data-reset="' + e.target.dataset.i + '" style="color:var(--dourado)">recalcular</a>'; }
+      atualizarRodape();
+    }
+    else s[f] = e.target.value;
+    simular();
   }));
   tb.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => { servicos.splice(+b.dataset.del,1); desenharServicos(); simular(); }));
 }
+function atualizarRodape(){
+  const td = $('simTable').querySelector('tfoot td:nth-child(4)');
+  if (td) td.textContent = fmtBRL.format(servicos.reduce((a,s) => a + (s.valor || 0), 0));
+}
+$('simTable').querySelector('tbody').addEventListener('click', (e) => {
+  const a = e.target.closest('[data-reset]'); if (!a) return;
+  e.preventDefault(); servicos[+a.dataset.reset].manual = false; desenharServicos(); simular();
+});
+$('simMeses').addEventListener('input', () => {
+  const v = parseInt($('simMeses').value, 10);
+  if (!v || v < 1) return;
+  simMeses = v; servicos.forEach((s) => { s.manual = false; }); desenharServicos(); simular();
+});
 $('simAdd').addEventListener('click', () => { servicos.push({ nome:'Novo serviço', cct:'200029', valor:0 }); desenharServicos(); simular(); });
 $('simRegime').addEventListener('change', simular);
 $('simAno').addEventListener('change', () => { aplicarAno(true); simular(); });
@@ -676,10 +708,12 @@ $('xmlFiles').addEventListener('change', (e) => { lerArquivos(e.target.files); e
 $('xmlClear').addEventListener('click', () => { xmlChaves.clear(); xmlNotas.length = 0; xmlAvisos.length = 0; xmlGrupos = []; $('xmlOut').classList.add('hidden'); });
 $('xmlToSim').addEventListener('click', () => {
   if (!xmlGrupos.length) return;
-  const usarMedia = $('xmlBase').value === 'media';
+  simMeses = xmlResumo ? xmlResumo.nMeses : 1;
+  $('simMeses').value = simMeses;
+  $('simMesesHint').textContent = xmlResumo ? `Período das notas: ${fmtMes(xmlResumo.periodo)} (${xmlResumo.nMeses} ${xmlResumo.nMeses === 1 ? 'mês' : 'meses'} com nota). Ajuste se o cliente ficou algum mês sem emitir.` : '';
   servicos = xmlGrupos.map((x) => ({
     nome: `Item ${x.lc || '?'}` + (x.nbs ? ' · NBS ' + Calc.fmtNbs(x.nbs) : '') + (x.desc ? ' · ' + x.desc.slice(0,40) : ''),
-    cct: x.cct || '', valor: usarMedia ? x.media : Calc.roundHalfEven(x.total, 2),
+    cct: x.cct || '', notas: x.notas, totalNotas: Calc.roundHalfEven(x.total, 2), valor: 0, manual: false,
   }));
   if (xmlResumo && xmlResumo.issMedio) $('pIss').value = Calc.roundHalfEven(xmlResumo.issMedio, 2);
   if (xmlResumo) $('simRegime').value = xmlResumo.simples ? 'simples' : 'geral';
