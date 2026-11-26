@@ -56,6 +56,23 @@ module.exports = async (req, res) => {
     if (req.method !== 'POST') return res.status(405).json({ erro: 'Método não permitido' });
     let text = await readBody(req);
     if (typeof text !== 'string') text = Buffer.isBuffer(text) ? text.toString('utf-8') : String(text.csv || '');
+    const modo = String((req.query && req.query.modo) || req.headers['x-modo'] || '').toLowerCase();
+    if (modo === 'adicionar') {
+      // Adiciona e-mails avulsos (um por linha, opcionalmente "e-mail;nome") sem apagar a lista atual
+      const atuais = await readAlunos();
+      const novos = [];
+      text.split(/[\r\n,]+/).map((l) => l.trim()).filter(Boolean).forEach((l) => {
+        const [em, ...resto] = l.split(/[;\t]/);
+        const email = (em || '').trim().toLowerCase();
+        if (!/^\S+@\S+\.\S+$/.test(email)) return;
+        if (!atuais[email]) novos.push(email);
+        const nome = resto.join(' ').trim();
+        atuais[email] = Object.assign({ nome: nome ? titleCase(nome) : email.split('@')[0], turma: 'Manual', tipo: 'Manual', data: new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Recife' }) }, atuais[email] || {}, nome ? { nome: titleCase(nome) } : {});
+      });
+      if (!novos.length && !text.trim()) throw new Error('Nenhum e-mail informado');
+      await writeAlunos(atuais);
+      return res.status(200).json({ ok: true, adicionados: novos, total: Object.keys(atuais).length });
+    }
     const alunos = parseCSV(text);
     const total = Object.keys(alunos).length;
     if (!total) throw new Error('Nenhum e-mail válido encontrado no CSV');
