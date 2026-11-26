@@ -83,6 +83,11 @@ details{font-size:13px;color:var(--tinta-suave)}
 details summary{cursor:pointer;color:var(--dourado);font-weight:600}
 .note{background:var(--alerta-bg);color:var(--alerta);border-radius:8px;padding:10px 12px;font-size:13.5px}
 .tag{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#6485A1}
+
+.drop{border:2px dashed var(--linha);border-radius:10px;padding:22px;text-align:center;cursor:pointer;background:var(--creme);transition:border-color .15s,background .15s}
+.drop:hover,.drop.over{border-color:#6485A1;background:#E4ECF4}
+.drop strong{color:var(--dourado)}
+.xmlsum{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
 footer{max-width:1080px;margin:0 auto;padding:0 16px 32px;color:var(--tinta-suave);font-size:12.5px}
 @media (prefers-reduced-motion: reduce){*{scroll-behavior:auto!important;transition:none!important}}
 </style>
@@ -138,6 +143,31 @@ footer{max-width:1080px;margin:0 auto;padding:0 16px 32px;color:var(--tinta-suav
 
   <!-- SIMULADOR -->
   <section id="sec-simulador" role="tabpanel" aria-labelledby="tab-simulador" class="grid hidden">
+    <div class="panel">
+      <h2>Importar notas fiscais (XML)</h2>
+      <p class="lead">Selecione os XML das NFS-e emitidas pelo cliente (padrão nacional ou padrão ABRASF das prefeituras). Os serviços são agrupados por item da LC 116, NBS e cClassTrib, e o faturamento vira média mensal. Os arquivos são lidos no seu navegador: nada é enviado ao servidor.</p>
+      <div class="drop" id="xmlDrop" role="button" tabindex="0" aria-label="Selecionar arquivos XML">
+        <div style="font-size:26px" aria-hidden="true">📂</div>
+        <div><strong>Clique ou arraste</strong> os arquivos XML aqui</div>
+        <div class="hint">Pode selecionar várias notas de uma vez, ou um XML de lote com várias notas.</div>
+      </div>
+      <input type="file" id="xmlFiles" accept=".xml,text/xml,application/xml" multiple hidden>
+      <div id="xmlOut" class="hidden">
+        <div class="xmlsum" id="xmlChips"></div>
+        <div class="cols" style="margin-bottom:10px">
+          <label for="xmlBase">Valor levado ao simulador
+            <select id="xmlBase"><option value="media">Média mensal do período</option><option value="total">Total do período</option></select>
+          </label>
+        </div>
+        <div class="tablewrap"><table id="xmlTable"></table></div>
+        <div class="btns" style="margin-top:10px">
+          <button class="btn" id="xmlToSim" type="button">Usar no simulador</button>
+          <button class="btn sec" id="xmlToAud" type="button">Conferir o cadastro das notas na auditoria</button>
+          <button class="btn sec" id="xmlClear" type="button">Limpar</button>
+        </div>
+        <details style="margin-top:10px"><summary>Notas ignoradas ou com aviso</summary><div id="xmlAvisos" style="margin-top:6px"></div></details>
+      </div>
+    </div>
     <div class="panel">
       <h2>Parâmetros</h2>
       <p class="lead">Mesma fórmula do motor oficial: alíquota efetiva = alíquota × (1 − redução da cClassTrib); tributo = base × alíquota efetiva. Arredondamento bancário (meio para o par), como na calculadora da Receita.</p>
@@ -517,6 +547,140 @@ function simular(){
     <div class="tile"><div class="k">IBS</div><div class="v">${fmtBRL.format(tot.ibs)}</div><div class="s">${tot.fat ? fmtCarga(tot.ibs/tot.fat*100) : '—'} do faturamento</div></div>
     <div class="tile"><div class="k">CBS + IBS</div><div class="v">${fmtBRL.format(tot.total)}</div><div class="s">${tot.fat ? fmtCarga(tot.total/tot.fat*100) : '—'} do faturamento${regime === 'simples' ? ', dentro do DAS' : ''}</div></div>`;
 }
+
+
+// ---------- Importação de XML de NFS-e ----------
+const xmlNotas = [];   // notas lidas
+const xmlAvisos = [];
+const DESC = (root, nomes) => {
+  const set = new Set(nomes);
+  const it = root.getElementsByTagName('*');
+  for (let i = 0; i < it.length; i++) if (set.has(it[i].localName)) { const t = (it[i].textContent || '').trim(); if (t) return t; }
+  return '';
+};
+const temTag = (root, nome) => { const it = root.getElementsByTagName('*'); for (let i = 0; i < it.length; i++) if (it[i].localName === nome) return true; return false; };
+function itemLcDe(raw, nacional){
+  let t = String(raw || '').trim();
+  if (!t) return '';
+  if (nacional) { const d = t.replace(/\D/g,''); if (d.length >= 4) return Calc.normLc(`${Number(d.slice(0,2))}.${d.slice(2,4)}`); }
+  if (t.includes('.') || t.includes(',')) return Calc.normLc(t.split(/[.,]/).slice(0,2).join('.'));
+  const d = t.replace(/\D/g,'');
+  if (d.length === 4) return Calc.normLc(`${Number(d.slice(0,2))}.${d.slice(2)}`);
+  if (d.length === 3) return Calc.normLc(`${d[0]}.${d.slice(1)}`);
+  if (d.length === 6) return Calc.normLc(`${Number(d.slice(0,2))}.${d.slice(2,4)}`);
+  return Calc.normLc(t);
+}
+const numBR = (v) => { if (!v) return 0; let s = String(v).trim(); if (s.includes(',') && !s.includes('.')) s = s.replace(',', '.'); else if (s.includes(',') && s.includes('.')) s = s.replace(/\./g,'').replace(',', '.'); return parseFloat(s) || 0; };
+
+function lerNotasDoXml(txt, arquivo){
+  const doc = new DOMParser().parseFromString(txt, 'application/xml');
+  if (doc.getElementsByTagName('parsererror').length) { xmlAvisos.push(`${arquivo}: arquivo não é um XML válido.`); return; }
+  const todos = [...doc.getElementsByTagName('*')];
+  // Padrão nacional: infNFSe ; ABRASF: InfNfse (dentro de CompNfse)
+  let raizes = todos.filter((e) => e.localName === 'infNFSe');
+  const nacional = raizes.length > 0;
+  if (!nacional) raizes = todos.filter((e) => e.localName === 'InfNfse');
+  if (!raizes.length) raizes = todos.filter((e) => e.localName === 'infDPS' || e.localName === 'InfDeclaracaoPrestacaoServico' || e.localName === 'InfRps');
+  if (!raizes.length) { xmlAvisos.push(`${arquivo}: não encontrei uma NFS-e neste XML (é uma NF-e de produto?).`); return; }
+  raizes.forEach((r, k) => {
+    const comp = r.closest ? (r.closest('CompNfse') || r.parentNode && r.parentNode.parentNode) : null;
+    const nome = raizes.length > 1 ? `${arquivo} (nota ${k+1})` : arquivo;
+    if (comp && temTag(comp, 'NfseCancelamento')) { xmlAvisos.push(`${nome}: nota cancelada, ignorada.`); return; }
+    const num = DESC(r, ['nNFSe','Numero','nDPS']);
+    const valor = numBR(DESC(r, nacional ? ['vServ'] : ['ValorServicos','vServ']));
+    const lcRaw = nacional ? DESC(r, ['cTribNac']) : DESC(r, ['ItemListaServico','cTribNac']);
+    const lc = itemLcDe(lcRaw, nacional || /^\d{6}$/.test(lcRaw));
+    const nbs = Calc.normNbs(DESC(r, ['cNBS','CodigoNbs','NBS']));
+    const cct = Calc.normCct(DESC(r, ['cClassTrib','cClassTribIBSCBS']));
+    const cst = Calc.normCst(DESC(r, ['CST','cstIBSCBS']));
+    let aliqIss = numBR(DESC(r, nacional ? ['pAliq','pAliqAplic'] : ['Aliquota','pAliq']));
+    if (aliqIss > 0 && aliqIss < 1 && !nacional) aliqIss = aliqIss * 100;
+    const comp2 = (DESC(r, ['dCompet','Competencia']) || DESC(r, ['dhEmi','DataEmissao','dhProc'])).slice(0,7);
+    const optSn = DESC(r, ['opSimpNac','OptanteSimplesNacional']);
+    const simples = nacional ? (optSn === '2' || optSn === '3') : optSn === '1';
+    const desc = DESC(r, ['xDescServ','Discriminacao']).slice(0, 90);
+    if (!valor) { xmlAvisos.push(`${nome}: valor do serviço não encontrado, ignorada.`); return; }
+    xmlNotas.push({ arquivo:nome, num, valor, lc, nbs, cct, cst, aliqIss, mes:comp2, simples, desc });
+  });
+}
+
+// cClassTrib: usa a da nota; se faltar, deduz pela correlação oficial (item + NBS, ou só o item)
+function deduzirCct(n){
+  if (n.cct) return { cct:n.cct, origem:'nota' };
+  if (IX && n.lc && n.nbs) { const p = IX.corrByLcNbs.get(n.lc + '|' + n.nbs); if (p && p.size === 1) return { cct:[...p][0], origem:'correlação (item + NBS)' }; }
+  if (IX && n.lc) {
+    const set = new Set(); IX.corrByLcNbs.forEach((v, k) => { if (k.startsWith(n.lc + '|')) v.forEach((c) => set.add(c)); });
+    if (set.size === 1) return { cct:[...set][0], origem:'correlação (item)' };
+    if (set.size > 1) return { cct:'', origem:'ambígua: ' + [...set].join(' ou ') };
+  }
+  return { cct:'', origem:'não informada' };
+}
+
+let xmlGrupos = [];
+function agruparXml(){
+  const meses = new Set(xmlNotas.map((n) => n.mes).filter(Boolean));
+  const nMeses = Math.max(meses.size, 1);
+  const g = new Map();
+  xmlNotas.forEach((n) => {
+    const d = deduzirCct(n);
+    const k = [n.lc, n.nbs, d.cct || '?'].join('|');
+    if (!g.has(k)) g.set(k, { lc:n.lc, nbs:n.nbs, cct:d.cct, origem:d.origem, cst:n.cst, total:0, notas:0, issPond:0, desc:n.desc });
+    const x = g.get(k); x.total += n.valor; x.notas++; x.issPond += n.aliqIss * n.valor; if (!x.cst && n.cst) x.cst = n.cst;
+  });
+  xmlGrupos = [...g.values()].sort((a,b) => b.total - a.total).map((x) => ({ ...x, media: Calc.roundHalfEven(x.total / nMeses, 2) }));
+  const total = xmlNotas.reduce((a,n) => a + n.valor, 0);
+  const issMedio = total ? xmlNotas.reduce((a,n) => a + n.aliqIss * n.valor, 0) / total : 0;
+  const ms = [...meses].sort();
+  const simples = xmlNotas.length && xmlNotas.filter((n) => n.simples).length > xmlNotas.length / 2;
+  return { total, nMeses, issMedio, periodo: ms.length ? (ms[0] === ms[ms.length-1] ? ms[0] : ms[0] + ' a ' + ms[ms.length-1]) : '—', simples };
+}
+const fmtMes = (m) => m.split(' a ').map((x) => x.split('-').reverse().join('/')).join(' a ');
+let xmlResumo = null;
+function desenharXml(){
+  xmlResumo = agruparXml();
+  $('xmlOut').classList.toggle('hidden', !xmlNotas.length && !xmlAvisos.length);
+  $('xmlChips').innerHTML = `<span class="chip ok">${xmlNotas.length} notas lidas</span>`
+    + `<span class="chip ok">Período: ${esc(fmtMes(xmlResumo.periodo))} (${xmlResumo.nMeses} ${xmlResumo.nMeses === 1 ? 'mês' : 'meses'})</span>`
+    + `<span class="chip ok">Faturamento: ${fmtBRL.format(xmlResumo.total)}</span>`
+    + (xmlResumo.issMedio ? `<span class="chip ok">ISS médio: ${fmtPct(Calc.roundHalfEven(xmlResumo.issMedio,2))}</span>` : '')
+    + (xmlResumo.simples ? '<span class="chip alerta">Emitente optante pelo Simples</span>' : '')
+    + (xmlAvisos.length ? `<span class="chip alerta">${xmlAvisos.length} aviso(s)</span>` : '');
+  $('xmlTable').innerHTML = `<thead><tr><th>Item LC 116</th><th>NBS</th><th>cClassTrib</th><th class="num">Notas</th><th class="num">Total do período</th><th class="num">Média mensal</th></tr></thead><tbody>`
+    + xmlGrupos.map((x) => `<tr><td>${esc(x.lc || '—')}${IX && IX.lc.has(x.lc) ? `<div class="hint">${esc(IX.lc.get(x.lc).slice(0,60))}</div>` : ''}</td><td class="mono">${esc(x.nbs ? Calc.fmtNbs(x.nbs) : '—')}</td><td class="mono">${esc(x.cct || '—')}${x.origem !== 'nota' ? `<div class="hint" style="font-family:var(--font-body)">${esc(x.origem)}</div>` : ''}</td><td class="num">${x.notas}</td><td class="num">${fmtBRL.format(x.total)}</td><td class="num">${fmtBRL.format(x.media)}</td></tr>`).join('')
+    + `</tbody>`;
+  $('xmlAvisos').innerHTML = xmlAvisos.length ? '<ul style="margin:0;padding-left:18px">' + xmlAvisos.map((a) => `<li>${esc(a)}</li>`).join('') + '</ul>' : '<span class="hint">Nenhum.</span>';
+}
+async function lerArquivos(files){
+  const lista = [...files].filter((f) => /\.xml$/i.test(f.name) || /xml/.test(f.type));
+  if (!lista.length) { xmlAvisos.push('Nenhum arquivo .xml selecionado.'); desenharXml(); return; }
+  for (const f of lista) { try { lerNotasDoXml(await f.text(), f.name); } catch(e) { xmlAvisos.push(`${f.name}: erro ao ler (${e.message}).`); } }
+  desenharXml();
+}
+$('xmlDrop').addEventListener('click', () => $('xmlFiles').click());
+$('xmlDrop').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('xmlFiles').click(); } });
+$('xmlDrop').addEventListener('dragover', (e) => { e.preventDefault(); $('xmlDrop').classList.add('over'); });
+$('xmlDrop').addEventListener('dragleave', () => $('xmlDrop').classList.remove('over'));
+$('xmlDrop').addEventListener('drop', (e) => { e.preventDefault(); $('xmlDrop').classList.remove('over'); lerArquivos(e.dataTransfer.files); });
+$('xmlFiles').addEventListener('change', (e) => { lerArquivos(e.target.files); e.target.value = ''; });
+$('xmlClear').addEventListener('click', () => { xmlNotas.length = 0; xmlAvisos.length = 0; xmlGrupos = []; $('xmlOut').classList.add('hidden'); });
+$('xmlToSim').addEventListener('click', () => {
+  if (!xmlGrupos.length) return;
+  const usarMedia = $('xmlBase').value === 'media';
+  servicos = xmlGrupos.map((x) => ({
+    nome: `Item ${x.lc || '?'}` + (x.nbs ? ' · NBS ' + Calc.fmtNbs(x.nbs) : '') + (x.desc ? ' · ' + x.desc.slice(0,40) : ''),
+    cct: x.cct || '', valor: usarMedia ? x.media : Calc.roundHalfEven(x.total, 2),
+  }));
+  if (xmlResumo && xmlResumo.issMedio) $('pIss').value = Calc.roundHalfEven(xmlResumo.issMedio, 2);
+  if (xmlResumo) $('simRegime').value = xmlResumo.simples ? 'simples' : 'geral';
+  desenharServicos(); aplicarAno(false); simular();
+  $('simTable').scrollIntoView({ behavior:'smooth', block:'start' });
+});
+$('xmlToAud').addEventListener('click', () => {
+  if (!xmlGrupos.length) return;
+  $('audInput').value = xmlGrupos.map((x) => [`Item ${x.lc || '?'} (${x.notas} nota${x.notas > 1 ? 's' : ''})`, x.lc, x.nbs ? Calc.fmtNbs(x.nbs) : '', x.cct, x.cst, ''].join(';')).join('\n');
+  if (xmlResumo) $('audRegime').value = xmlResumo.simples ? 'simples' : 'geral';
+  abrir('auditoria'); auditar();
+});
 
 // Carga dos dados oficiais (protegidos: exigem o login da Consulta)
 function carregarOficiais(){
