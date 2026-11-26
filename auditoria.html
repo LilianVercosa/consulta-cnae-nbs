@@ -9,15 +9,15 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-/* Identidade Verçosa: espresso, creme e dourado. Layout: barra de abas fixa, conteúdo em coluna única com painéis. */
+/* Identidade CES: azul-noite, azul e azul-acinzentado. Layout: barra de abas fixa, conteúdo em coluna única com painéis. */
 :root{
-  --espresso:#2B1D14;
-  --creme:#F6F0E6;
-  --papel:#FFFCF7;
-  --dourado:#A97A3E;
-  --tinta:#2B2420;
-  --tinta-suave:#6B5F55;
-  --linha:#E6DCCD;
+  --espresso:#051B4A;
+  --creme:#EEF2F6;
+  --papel:#FFFFFF;
+  --dourado:#0F336F;
+  --tinta:#16213A;
+  --tinta-suave:#55667D;
+  --linha:#D7E0EA;
   --ok:#1E6B48; --ok-bg:#E6F3EC;
   --alerta:#8A5A00; --alerta-bg:#FBF0D9;
   --erro:#A5281F; --erro-bg:#FAE8E6;
@@ -26,33 +26,19 @@
   --font-mono:'IBM Plex Mono', ui-monospace, monospace;
   color-scheme:light;
 }
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --creme:#1C1612; --papel:#251D18; --tinta:#F1E9DE; --tinta-suave:#B9AC9E; --linha:#3D322A;
-    --dourado:#D2A564; --espresso:#120C08;
-    --ok:#7FD1A6; --ok-bg:#16301F; --alerta:#F0C46A; --alerta-bg:#33280F; --erro:#F09A90; --erro-bg:#3A1A16;
-    color-scheme:dark;
-  }
-}
-:root[data-theme="dark"]{
-  --creme:#1C1612; --papel:#251D18; --tinta:#F1E9DE; --tinta-suave:#B9AC9E; --linha:#3D322A;
-  --dourado:#D2A564; --espresso:#120C08;
-  --ok:#7FD1A6; --ok-bg:#16301F; --alerta:#F0C46A; --alerta-bg:#33280F; --erro:#F09A90; --erro-bg:#3A1A16;
-  color-scheme:dark;
-}
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--creme);color:var(--tinta);font-family:var(--font-body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
 h1,h2,h3{font-family:var(--font-display);margin:0;text-wrap:balance;letter-spacing:-0.01em}
 code,.mono{font-family:var(--font-mono);font-size:.92em}
-header.top{background:var(--espresso);color:#F6F0E6;padding:20px 16px 0}
+header.top{background:linear-gradient(120deg,#051B4A 0%,#0F336F 75%,#243D64 100%);color:#fff;padding:20px 16px 0}
 header.top .wrap{max-width:1080px;margin:0 auto}
 header.top h1{font-size:26px;font-weight:700}
-header.top p{margin:4px 0 14px;color:#D9CBB6;font-size:14px;max-width:70ch}
+header.top p{margin:4px 0 14px;color:#C9D6E4;font-size:14px;max-width:70ch}
 nav.tabs{display:flex;gap:4px;flex-wrap:wrap}
-nav.tabs button{font:inherit;font-weight:600;font-size:14px;background:transparent;color:#D9CBB6;border:0;border-bottom:3px solid transparent;padding:10px 14px;cursor:pointer}
-nav.tabs button[aria-selected="true"]{color:#fff;border-bottom-color:#D2A564}
-nav.tabs button:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--dourado);outline-offset:2px}
+nav.tabs button{font:inherit;font-weight:600;font-size:14px;background:transparent;color:#B9C9DA;border:0;border-bottom:3px solid transparent;padding:10px 14px;cursor:pointer}
+nav.tabs button[aria-selected="true"]{color:#fff;border-bottom-color:#8FB0CC}
+nav.tabs button:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid #6485A1;outline-offset:2px}
 main{max-width:1080px;margin:0 auto;padding:20px 16px 48px;display:grid;gap:18px}
 .panel{background:var(--papel);border:1px solid var(--linha);border-radius:10px;padding:18px}
 .panel h2{font-size:20px;margin-bottom:4px}
@@ -96,7 +82,7 @@ td .del{background:none;border:0;color:var(--erro);cursor:pointer;font-size:18px
 details{font-size:13px;color:var(--tinta-suave)}
 details summary{cursor:pointer;color:var(--dourado);font-weight:600}
 .note{background:var(--alerta-bg);color:var(--alerta);border-radius:8px;padding:10px 12px;font-size:13.5px}
-.tag{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--dourado)}
+.tag{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#6485A1}
 footer{max-width:1080px;margin:0 auto;padding:0 16px 32px;color:var(--tinta-suave);font-size:12.5px}
 @media (prefers-reduced-motion: reduce){*{scroll-behavior:auto!important;transition:none!important}}
 </style>
@@ -213,7 +199,7 @@ footer{max-width:1080px;margin:0 auto;padding:0 16px 32px;color:var(--tinta-suav
     </div>
   </section>
 </main>
-<footer>Verçosa Contabilidade · Inteligência tributária para a saúde</footer>
+<footer>CES · Comunidade de Especialistas em Saúde</footer>
 
 <script>
 // Núcleo de cálculo e validação — reproduz as fórmulas da Calculadora de Tributos oficial

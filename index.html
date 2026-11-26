@@ -3,37 +3,39 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Consulta CNAE / NBS / cClassTrib — IBS/CBS</title>
+<title>Consulta CNAE / NBS / cClassTrib — CES</title>
+<link rel="icon" href="/img/ces-logo-azul.png">
 <style>
-:root{--blue:#1a4b8c;--blue-light:#2563b8;--blue-pale:#e8f0fb;--green:#166534;--green-bg:#dcfce7;--orange:#92400e;--orange-bg:#fef3c7;--gray:#4b5563;--border:#d1d5db;--red:#b91c1c;--red-bg:#fee2e2;}
+:root{--ces-noite:#051B4A;--ces-azul:#0F336F;--ces-ardosia:#243D64;--ces-cinza:#6485A1;--ces-logo:#00406B;--blue:#0F336F;--blue-light:#243D64;--blue-pale:#E8EEF4;--green:#166534;--green-bg:#dcfce7;--orange:#92400e;--orange-bg:#fef3c7;--gray:#4b5563;--border:#d1d5db;--red:#b91c1c;--red-bg:#fee2e2;}
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1f2937;min-height:100vh;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#EEF2F6;color:#1f2937;min-height:100vh;}
 
 /* ═══════════════ LOGIN ═══════════════ */
-#loginOverlay{position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#0f2a5e 0%,#1a4b8c 60%,#2563b8 100%);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;}
+#loginOverlay{position:fixed;inset:0;z-index:9999;background:linear-gradient(rgba(5,27,74,.55),rgba(5,27,74,.75)),url('/img/ces-fundo.jpg') center/cover no-repeat,#051B4A;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;}
 #loginOverlay.hidden{display:none;}
 .login-box{margin:auto;background:#fff;border-radius:18px;padding:40px 36px 32px;width:100%;max-width:420px;box-shadow:0 24px 64px rgba(0,0,0,.4);text-align:center;animation:popIn .3s ease;}
 @keyframes popIn{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}
-.login-logo{font-size:2.8rem;margin-bottom:8px;}
-.login-title{font-size:1.2rem;font-weight:800;color:#1a4b8c;margin-bottom:4px;}
+.login-logo{margin:0 auto 14px;}
+.login-logo img{height:64px;width:auto;display:block;margin:0 auto;}
+.login-title{font-size:1.2rem;font-weight:800;color:#0F336F;margin-bottom:4px;}
 .login-sub{font-size:.8rem;color:#6b7280;margin-bottom:28px;line-height:1.5;}
 .login-group{text-align:left;margin-bottom:16px;}
 .login-group label{display:block;font-size:.82rem;font-weight:700;color:#374151;margin-bottom:6px;}
 .login-group input{width:100%;padding:12px 14px;border:2px solid #d1d5db;border-radius:9px;font-size:.97rem;outline:none;transition:border-color .2s;background:#fafafa;}
-.login-group input:focus{border-color:#2563b8;background:#fff;}
-.btn-login{width:100%;padding:13px;background:linear-gradient(135deg,#1a4b8c,#2563b8);color:#fff;border:none;border-radius:9px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:6px;transition:opacity .2s;}
+.login-group input:focus{border-color:#243D64;background:#fff;}
+.btn-login{width:100%;padding:13px;background:linear-gradient(135deg,#051B4A,#0F336F);color:#fff;border:none;border-radius:9px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:6px;transition:opacity .2s;}
 .btn-login:hover{opacity:.88;}
 .login-error{background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:.84rem;margin-bottom:14px;display:none;text-align:left;}
 .login-error.show{display:block;}
 .login-info{font-size:.74rem;color:#9ca3af;margin-top:18px;border-top:1px solid #f3f4f6;padding-top:14px;line-height:1.6;}
-.admin-toggle{display:inline-block;margin-top:10px;font-size:.74rem;color:#2563b8;cursor:pointer;text-decoration:underline;}
+.admin-toggle{display:inline-block;margin-top:10px;font-size:.74rem;color:#243D64;cursor:pointer;text-decoration:underline;}
 
 /* ═══════════════ ADMIN CSV PANEL ═══════════════ */
 #adminPanel{display:none;margin-top:18px;border-top:1px solid #e5e7eb;padding-top:18px;text-align:left;}
 #adminPanel.open{display:block;}
 .admin-panel-title{font-size:.85rem;font-weight:700;color:#374151;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
 .upload-area{border:2px dashed #d1d5db;border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:#fafafa;}
-.upload-area:hover{border-color:#2563b8;background:#e8f0fb;}
+.upload-area:hover{border-color:#243D64;background:#E8EEF4;}
 .upload-area p{font-size:.82rem;color:#6b7280;}
 #csvFileInput{display:none;}
 .upload-result{font-size:.8rem;color:#166534;background:#dcfce7;border:1px solid #86efac;border-radius:7px;padding:8px 12px;margin-top:10px;display:none;}
@@ -41,12 +43,12 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1f2937;mi
 .upload-result.err{color:#b91c1c;background:#fee2e2;border-color:#fca5a5;}
 .admin-pass-row{display:flex;gap:8px;margin-bottom:10px;}
 .admin-pass-row input{flex:1;padding:9px 12px;border:1.5px solid #d1d5db;border-radius:7px;font-size:.88rem;outline:none;}
-.admin-pass-row input:focus{border-color:#2563b8;}
-.btn-admin-confirm{padding:9px 16px;background:#1a4b8c;color:#fff;border:none;border-radius:7px;font-size:.82rem;font-weight:700;cursor:pointer;white-space:nowrap;}
+.admin-pass-row input:focus{border-color:#243D64;}
+.btn-admin-confirm{padding:9px 16px;background:#0F336F;color:#fff;border:none;border-radius:7px;font-size:.82rem;font-weight:700;cursor:pointer;white-space:nowrap;}
 .csv-hint{font-size:.73rem;color:#9ca3af;margin-top:8px;font-family:monospace;line-height:1.6;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px;}
 
 /* ═══════════════ USER BAR ═══════════════ */
-.user-bar{display:none;position:fixed;top:12px;right:16px;z-index:999;background:rgba(255,255,255,.15);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.25);border-radius:20px;padding:5px 14px 5px 10px;align-items:center;gap:10px;font-size:.8rem;color:#fff;}
+.user-bar{display:none;position:fixed;top:12px;right:16px;z-index:999;background:rgba(5,27,74,.92);backdrop-filter:blur(6px);border:1px solid rgba(100,133,161,.6);box-shadow:0 4px 14px rgba(5,27,74,.25);border-radius:20px;padding:5px 14px 5px 10px;align-items:center;gap:10px;font-size:.8rem;color:#fff;}
 .user-bar.visible{display:flex;}
 .user-bar .avatar{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:.82rem;font-weight:700;}
 .user-bar .uname{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -57,8 +59,9 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1f2937;mi
 .session-warn.visible{display:block;}
 
 /* ═══════════════ MAIN APP ═══════════════ */
-header{background:linear-gradient(135deg,var(--blue) 0%,var(--blue-light) 100%);color:#fff;padding:20px 32px;display:flex;align-items:center;gap:16px;}
-header .icon{font-size:2rem;}
+header{background:linear-gradient(120deg,var(--ces-noite) 0%,var(--ces-azul) 70%,var(--ces-ardosia) 100%);color:#fff;padding:18px 290px 18px 32px;display:flex;align-items:center;gap:20px;border-bottom:3px solid var(--ces-cinza);}
+header .ces-logo{height:44px;width:auto;flex:none;}
+header .sep{width:1px;align-self:stretch;background:rgba(255,255,255,.3);}
 header h1{font-size:1.35rem;font-weight:700;line-height:1.2;}
 header p{font-size:.82rem;opacity:.85;margin-top:3px;}
 .container{max-width:960px;margin:0 auto;padding:28px 20px 48px;}
@@ -111,7 +114,7 @@ header p{font-size:.82rem;opacity:.85;margin-top:3px;}
 .multi-result{display:none;}
 .multi-result.show{display:block;}
 .multi-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;cursor:pointer;transition:border-color .2s,box-shadow .2s;}
-.multi-card:hover{border-color:var(--blue-light);box-shadow:0 2px 8px rgba(26,75,140,.1);}
+.multi-card:hover{border-color:var(--blue-light);box-shadow:0 2px 8px rgba(15,51,111,.12);}
 .multi-card .mc-code{font-size:1rem;font-weight:800;color:var(--blue);}
 .multi-card .mc-desc{font-size:.85rem;color:var(--gray);margin-top:3px;line-height:1.3;}
 .multi-card .mc-cnae{font-size:.78rem;color:#6b7280;margin-top:5px;}
@@ -123,7 +126,7 @@ footer{text-align:center;color:#9ca3af;font-size:.78rem;margin-top:40px;line-hei
 #refSection{display:none;}
 #audSection{display:none;}
 #audSection.show{display:block;}
-#audFrame{width:100%;border:0;border-radius:12px;min-height:600px;display:block;background:#F6F0E6;box-shadow:0 2px 8px rgba(0,0,0,.08);}
+#audFrame{width:100%;border:0;border-radius:12px;min-height:600px;display:block;background:#EEF2F6;box-shadow:0 2px 8px rgba(0,0,0,.08);}
 .container.wide{max-width:1120px;}
 #refSection.show{display:block;}
 .ref-intro{font-size:.82rem;color:#6b7280;margin-bottom:16px;line-height:1.5;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px;}
@@ -133,6 +136,7 @@ table.ref-table th{background:var(--blue-pale);color:var(--blue);text-align:left
 table.ref-table td{padding:9px 12px;border-top:1px solid #f0f0f0;vertical-align:top;}
 table.ref-table tr:hover td{background:#f8fafc;}
 table.ref-table .mono{font-weight:700;color:var(--blue-light);white-space:nowrap;}
+@media(max-width:800px){header{padding:70px 20px 18px;flex-wrap:wrap;}header .sep{display:none;}}
 @media(max-width:600px){.input-row{flex-direction:column;}.nbs-card{grid-template-columns:1fr;}.nbs-code{grid-row:auto;}table.ref-table{font-size:.76rem;}}
 </style>
 </head>
@@ -141,9 +145,9 @@ table.ref-table .mono{font-weight:700;color:var(--blue-light);white-space:nowrap
 <!-- LOGIN OVERLAY -->
 <div id="loginOverlay">
   <div class="login-box">
-    <div class="login-logo">📘</div>
+    <div class="login-logo"><img src="/img/ces-logo-azul.png" alt="CES – Comunidade de Especialistas em Saúde"></div>
     <div class="login-title">Consulta Tributária IBS/CBS</div>
-    <div class="login-sub">Acesso exclusivo para membros da comunidade.<br>Digite o e-mail usado na sua compra.</div>
+    <div class="login-sub">Acesso exclusivo para membros da Comunidade de Especialistas em Saúde.<br>Digite o e-mail usado na sua compra.</div>
     <div class="login-error" id="loginError"></div>
     <div class="login-group">
       <label>E-mail de acesso</label>
@@ -185,14 +189,12 @@ table.ref-table .mono{font-weight:700;color:var(--blue-light);white-space:nowrap
 <div class="session-warn" id="sessionWarn">⏳ Sua sessão expira em breve. Faça uma ação para continuar.</div>
 
 <header>
-  <div class="icon">🔍</div>
+  <img class="ces-logo" src="/img/ces-logo-branco.png" alt="CES">
+  <div class="sep" aria-hidden="true"></div>
   <div style="flex:1">
     <h1>Consulta CNAE / Código de Serviço → NBS / cClassTrib</h1>
     <p>Correlação IBS/CBS — Reforma Tributária (LC 116 × Anexo VIII)</p>
   </div>
-  <button onclick="doLogout()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.35);color:#fff;border-radius:20px;padding:7px 18px;font-size:.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:background .2s;" onmouseover="this.style.background='rgba(255,255,255,0.28)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
-    🚪 Sair
-  </button>
 </header>
 
 <div class="container">
@@ -835,7 +837,7 @@ function showItem(itemKey, cnaeRaw) {
           const desc = od ? od.desc.slice(0, 100) + (od.desc.length > 100 ? '…' : '') : '—';
           return `<div class="extra-card" style="cursor:pointer;border-color:#bfdbfe;background:#eff6ff;"
             onclick="showItem('${k}','${cnaeRaw}')">
-            <span class="ec-code" style="color:#1a4b8c;">Item ${k}</span>
+            <span class="ec-code" style="color:#0F336F;">Item ${k}</span>
             <span class="ec-desc" style="color:#374151;">${desc}</span>
           </div>`;
         }).join('')}`;
