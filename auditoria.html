@@ -551,6 +551,7 @@ function simular(){
 
 // ---------- Importação de XML de NFS-e ----------
 const xmlNotas = [];   // notas lidas
+const xmlChaves = new Set();
 const xmlAvisos = [];
 const DESC = (root, nomes) => {
   const set = new Set(nomes);
@@ -587,12 +588,15 @@ function lerNotasDoXml(txt, arquivo){
     const nome = raizes.length > 1 ? `${arquivo} (nota ${k+1})` : arquivo;
     if (comp && temTag(comp, 'NfseCancelamento')) { xmlAvisos.push(`${nome}: nota cancelada, ignorada.`); return; }
     const num = DESC(r, ['nNFSe','Numero','nDPS']);
+    const chave = r.getAttribute('Id') || r.getAttribute('id') || (DESC(r, ['CNPJ','Cnpj','CPF','Cpf']) + '|' + num + '|' + DESC(r, ['dhProc','DataEmissao','dhEmi']));
+    if (xmlChaves.has(chave)) { xmlAvisos.push(`${nome}: nota já importada, ignorada.`); return; }
     const valor = numBR(DESC(r, nacional ? ['vServ'] : ['ValorServicos','vServ']));
     const lcRaw = nacional ? DESC(r, ['cTribNac']) : DESC(r, ['ItemListaServico','cTribNac']);
     const lc = itemLcDe(lcRaw, nacional || /^\d{6}$/.test(lcRaw));
     const nbs = Calc.normNbs(DESC(r, ['cNBS','CodigoNbs','NBS']));
     const cct = Calc.normCct(DESC(r, ['cClassTrib','cClassTribIBSCBS']));
-    const cst = Calc.normCst(DESC(r, ['CST','cstIBSCBS']));
+    const gIbs = [...r.getElementsByTagName('*')].find((e) => e.localName === 'gIBSCBS');
+    const cst = Calc.normCst(gIbs ? DESC(gIbs, ['CST']) : DESC(r, ['cstIBSCBS']));
     let aliqIss = numBR(DESC(r, nacional ? ['pAliq','pAliqAplic'] : ['Aliquota','pAliq']));
     if (aliqIss > 0 && aliqIss < 1 && !nacional) aliqIss = aliqIss * 100;
     const comp2 = (DESC(r, ['dCompet','Competencia']) || DESC(r, ['dhEmi','DataEmissao','dhProc'])).slice(0,7);
@@ -600,6 +604,7 @@ function lerNotasDoXml(txt, arquivo){
     const simples = nacional ? (optSn === '2' || optSn === '3') : optSn === '1';
     const desc = DESC(r, ['xDescServ','Discriminacao']).slice(0, 90);
     if (!valor) { xmlAvisos.push(`${nome}: valor do serviço não encontrado, ignorada.`); return; }
+    xmlChaves.add(chave);
     xmlNotas.push({ arquivo:nome, num, valor, lc, nbs, cct, cst, aliqIss, mes:comp2, simples, desc });
   });
 }
@@ -661,8 +666,14 @@ $('xmlDrop').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key
 $('xmlDrop').addEventListener('dragover', (e) => { e.preventDefault(); $('xmlDrop').classList.add('over'); });
 $('xmlDrop').addEventListener('dragleave', () => $('xmlDrop').classList.remove('over'));
 $('xmlDrop').addEventListener('drop', (e) => { e.preventDefault(); $('xmlDrop').classList.remove('over'); lerArquivos(e.dataTransfer.files); });
+['dragover','drop'].forEach((ev) => document.addEventListener(ev, (e) => {
+  if (!e.dataTransfer || ![...(e.dataTransfer.types || [])].includes('Files')) return;
+  e.preventDefault();
+  if (ev === 'drop' && !e.target.closest('#xmlDrop')) { abrir('simulador'); lerArquivos(e.dataTransfer.files); }
+}));
+window.importarXml = (files) => { abrir('simulador'); lerArquivos(files); };
 $('xmlFiles').addEventListener('change', (e) => { lerArquivos(e.target.files); e.target.value = ''; });
-$('xmlClear').addEventListener('click', () => { xmlNotas.length = 0; xmlAvisos.length = 0; xmlGrupos = []; $('xmlOut').classList.add('hidden'); });
+$('xmlClear').addEventListener('click', () => { xmlChaves.clear(); xmlNotas.length = 0; xmlAvisos.length = 0; xmlGrupos = []; $('xmlOut').classList.add('hidden'); });
 $('xmlToSim').addEventListener('click', () => {
   if (!xmlGrupos.length) return;
   const usarMedia = $('xmlBase').value === 'media';

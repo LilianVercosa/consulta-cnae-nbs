@@ -605,6 +605,19 @@ function abrirAuditoria() {
     f.setAttribute('src', '/auditoria.html');
   }
 }
+// Arquivo solto fora do quadro do módulo: não deixa o navegador abrir o XML; repassa ao módulo
+['dragover','drop'].forEach((ev) => document.addEventListener(ev, (e) => {
+  if (!e.dataTransfer || ![...(e.dataTransfer.types || [])].includes('Files')) return;
+  if (e.target.closest && e.target.closest('#loginOverlay')) return;
+  e.preventDefault();
+  if (ev === 'drop' && sessionToken) {
+    setMode('aud');
+    const f = document.getElementById('audFrame'); const files = e.dataTransfer.files;
+    const enviar = () => { try { f.contentWindow.importarXml(files); } catch(err) { setTimeout(enviar, 400); } };
+    setTimeout(enviar, 300);
+  }
+}));
+
 function fecharAuditoria() {
   const f = document.getElementById('audFrame');
   if (audObs) { audObs.disconnect(); audObs = null; }
