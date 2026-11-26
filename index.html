@@ -121,6 +121,10 @@ footer{text-align:center;color:#9ca3af;font-size:.78rem;margin-top:40px;line-hei
 
 /* ═══════════════ REFERENCE TABLES (novo) ═══════════════ */
 #refSection{display:none;}
+#audSection{display:none;}
+#audSection.show{display:block;}
+#audFrame{width:100%;border:0;border-radius:12px;min-height:600px;display:block;background:#F6F0E6;box-shadow:0 2px 8px rgba(0,0,0,.08);}
+.container.wide{max-width:1120px;}
 #refSection.show{display:block;}
 .ref-intro{font-size:.82rem;color:#6b7280;margin-bottom:16px;line-height:1.5;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px;}
 .ref-table-wrap{overflow-x:auto;margin-bottom:28px;border:1px solid var(--border);border-radius:10px;}
@@ -199,6 +203,7 @@ table.ref-table .mono{font-weight:700;color:var(--blue-light);white-space:nowrap
       <button class="tab-btn" onclick="setMode('cnae')">CNAE</button>
       <button class="tab-btn" onclick="setMode('desc')">Descrição do Serviço</button>
       <button class="tab-btn" onclick="setMode('ref')">📋 Outros Códigos (Referência)</button>
+      <button class="tab-btn" onclick="setMode('aud')">🧮 Auditoria e Simulador CBS/IBS</button>
     </div>
     <div class="input-row" id="inputRow">
       <div class="input-wrap">
@@ -251,6 +256,12 @@ table.ref-table .mono{font-weight:700;color:var(--blue-light);white-space:nowrap
         <tbody id="atividadesTableBody"></tbody>
       </table>
     </div>
+  </div>
+
+  <!-- ═══════════ MÓDULO: AUDITORIA E SIMULADOR CBS/IBS ═══════════ -->
+  <div id="audSection">
+    <button class="back-btn" onclick="setMode('item')">← Voltar à pesquisa</button>
+    <iframe id="audFrame" title="Auditoria e Simulador CBS/IBS Saúde" scrolling="no"></iframe>
   </div>
 
   <footer>Fonte: Anexo VIII – Correlação Item NBS/IndOpC/ClassTrib IBS-CBS (v1.00.00) × CNAE 2.1 × LC 116/2003<br>
@@ -363,6 +374,7 @@ function doLogout() {
   document.getElementById('adminPass').value = '';
   document.getElementById('adminPanel').classList.remove('open');
   if (typeof clearResult === 'function') clearResult();
+  if (typeof fecharAuditoria === 'function') { fecharAuditoria(); setMode('item'); }
   showLogin();
 }
 
@@ -535,7 +547,18 @@ let mode = 'item';
 
 function setMode(m) {
   mode = m;
-  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['item','cnae','desc','ref'][i] === m));
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['item','cnae','desc','ref','aud'][i] === m));
+  document.getElementById('audSection').classList.toggle('show', m === 'aud');
+  document.querySelector('.container').classList.toggle('wide', m === 'aud');
+  if (m === 'aud') {
+    document.getElementById('inputRow').style.display = 'none';
+    document.getElementById('hintText').style.display = 'none';
+    document.getElementById('refSection').classList.remove('show');
+    closeSugg();
+    clearResult(true);
+    abrirAuditoria();
+    return;
+  }
 
   if (m === 'ref') {
     document.getElementById('inputRow').style.display = 'none';
@@ -565,6 +588,25 @@ function setMode(m) {
   document.getElementById('searchInput').value = '';
   closeSugg();
   clearResult();
+}
+
+// Módulo Auditoria/Simulador: carregado só quando a aba é aberta, em quadro separado
+let audObs = null;
+function abrirAuditoria() {
+  const f = document.getElementById('audFrame');
+  if (!f.getAttribute('src')) {
+    f.onload = () => {
+      const ajustar = () => { try { f.style.height = f.contentDocument.documentElement.scrollHeight + 'px'; } catch(e) {} };
+      ajustar();
+      try { audObs = new ResizeObserver(ajustar); audObs.observe(f.contentDocument.body); } catch(e) {}
+    };
+    f.setAttribute('src', '/auditoria.html');
+  }
+}
+function fecharAuditoria() {
+  const f = document.getElementById('audFrame');
+  if (audObs) { audObs.disconnect(); audObs = null; }
+  f.removeAttribute('src'); f.src = 'about:blank'; f.removeAttribute('src');
 }
 
 function normCnae(s) { return s.replace(/[^0-9]/g,'').padStart(7,'0'); }

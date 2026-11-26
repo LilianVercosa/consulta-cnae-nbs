@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Auditoria e Simulador CBS/IBS Saúde</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Identidade Verçosa: espresso, creme e dourado. Layout: barra de abas fixa, conteúdo em coluna única com painéis. */
+:root{
+  --espresso:#2B1D14;
+  --creme:#F6F0E6;
+  --papel:#FFFCF7;
+  --dourado:#A97A3E;
+  --tinta:#2B2420;
+  --tinta-suave:#6B5F55;
+  --linha:#E6DCCD;
+  --ok:#1E6B48; --ok-bg:#E6F3EC;
+  --alerta:#8A5A00; --alerta-bg:#FBF0D9;
+  --erro:#A5281F; --erro-bg:#FAE8E6;
+  --font-display:'Fraunces', Georgia, serif;
+  --font-body:'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono:'IBM Plex Mono', ui-monospace, monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --creme:#1C1612; --papel:#251D18; --tinta:#F1E9DE; --tinta-suave:#B9AC9E; --linha:#3D322A;
+    --dourado:#D2A564; --espresso:#120C08;
+    --ok:#7FD1A6; --ok-bg:#16301F; --alerta:#F0C46A; --alerta-bg:#33280F; --erro:#F09A90; --erro-bg:#3A1A16;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --creme:#1C1612; --papel:#251D18; --tinta:#F1E9DE; --tinta-suave:#B9AC9E; --linha:#3D322A;
+  --dourado:#D2A564; --espresso:#120C08;
+  --ok:#7FD1A6; --ok-bg:#16301F; --alerta:#F0C46A; --alerta-bg:#33280F; --erro:#F09A90; --erro-bg:#3A1A16;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--creme);color:var(--tinta);font-family:var(--font-body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--font-display);margin:0;text-wrap:balance;letter-spacing:-0.01em}
+code,.mono{font-family:var(--font-mono);font-size:.92em}
+header.top{background:var(--espresso);color:#F6F0E6;padding:20px 16px 0}
+header.top .wrap{max-width:1080px;margin:0 auto}
+header.top h1{font-size:26px;font-weight:700}
+header.top p{margin:4px 0 14px;color:#D9CBB6;font-size:14px;max-width:70ch}
+nav.tabs{display:flex;gap:4px;flex-wrap:wrap}
+nav.tabs button{font:inherit;font-weight:600;font-size:14px;background:transparent;color:#D9CBB6;border:0;border-bottom:3px solid transparent;padding:10px 14px;cursor:pointer}
+nav.tabs button[aria-selected="true"]{color:#fff;border-bottom-color:#D2A564}
+nav.tabs button:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--dourado);outline-offset:2px}
+main{max-width:1080px;margin:0 auto;padding:20px 16px 48px;display:grid;gap:18px}
+.panel{background:var(--papel);border:1px solid var(--linha);border-radius:10px;padding:18px}
+.panel h2{font-size:20px;margin-bottom:4px}
+.panel .lead{color:var(--tinta-suave);margin:0 0 14px;max-width:72ch}
+.hidden{display:none!important}
+.grid{display:grid;gap:12px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;align-items:start}
+label{display:grid;gap:4px;align-content:start;font-size:13px;font-weight:600;color:var(--tinta-suave)}
+input,select,textarea{font:inherit;color:var(--tinta);background:var(--papel);border:1px solid var(--linha);border-radius:6px;padding:8px 10px;width:100%}
+textarea{font-family:var(--font-mono);font-size:13px;min-height:150px;resize:vertical}
+.hint{font-size:12.5px;color:var(--tinta-suave);font-weight:400}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+button.btn{font:inherit;font-weight:600;font-size:14px;border-radius:6px;padding:9px 16px;cursor:pointer;border:1px solid var(--dourado);background:var(--dourado);color:#fff}
+button.btn.sec{background:transparent;color:var(--dourado)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;border-radius:999px;padding:4px 12px}
+.chip.ok{background:var(--ok-bg);color:var(--ok)} .chip.alerta{background:var(--alerta-bg);color:var(--alerta)} .chip.erro{background:var(--erro-bg);color:var(--erro)}
+.res{display:grid;gap:10px}
+.card{border:1px solid var(--linha);border-left:5px solid var(--linha);border-radius:8px;padding:12px 14px;background:var(--papel)}
+.card.ok{border-left-color:var(--ok)} .card.alerta{border-left-color:var(--alerta)} .card.erro{border-left-color:var(--erro)}
+.card .head{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
+.card .head strong{font-size:15px}
+.card ul{margin:8px 0 0;padding-left:0;list-style:none;display:grid;gap:4px;font-size:13.5px}
+.card li{display:grid;grid-template-columns:18px 1fr;gap:6px}
+.card li .ic{font-weight:700}
+.card li.ok .ic{color:var(--ok)} .card li.alerta .ic{color:var(--alerta)} .card li.erro .ic{color:var(--erro)}
+.codes{font-family:var(--font-mono);font-size:12.5px;color:var(--tinta-suave)}
+.tablewrap{overflow-x:auto;border:1px solid var(--linha);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 10px;border-bottom:1px solid var(--linha);text-align:left;vertical-align:top}
+th{background:var(--creme);font-weight:600;font-size:12.5px;color:var(--tinta-suave);white-space:nowrap}
+td.num,th.num{text-align:right;white-space:nowrap}
+tfoot td{font-weight:600;background:var(--creme)}
+table input{padding:6px 8px;min-width:90px}
+td .del{background:none;border:0;color:var(--erro);cursor:pointer;font-size:18px;line-height:1}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.tile{border:1px solid var(--linha);border-radius:8px;padding:12px 14px;background:var(--papel)}
+.tile .k{font-size:12.5px;color:var(--tinta-suave);font-weight:600}
+.tile .v{font-family:var(--font-display);font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+.tile .s{font-size:12.5px;color:var(--tinta-suave)}
+details{font-size:13px;color:var(--tinta-suave)}
+details summary{cursor:pointer;color:var(--dourado);font-weight:600}
+.note{background:var(--alerta-bg);color:var(--alerta);border-radius:8px;padding:10px 12px;font-size:13.5px}
+.tag{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--dourado)}
+footer{max-width:1080px;margin:0 auto;padding:0 16px 32px;color:var(--tinta-suave);font-size:12.5px}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1>Auditoria e Simulador CBS/IBS · Saúde</h1>
+    <p>Confere o cadastro de serviços dos clientes e simula a CBS e o IBS com as tabelas e as fórmulas da Calculadora de Tributos oficial da Receita Federal.</p>
+    <nav class="tabs" role="tablist" aria-label="Seções">
+      <button id="tab-auditoria" role="tab" aria-selected="true" aria-controls="sec-auditoria" data-tab="auditoria">Auditoria de cadastro</button>
+      <button id="tab-simulador" role="tab" aria-selected="false" aria-controls="sec-simulador" data-tab="simulador">Simulador de carga</button>
+      <button id="tab-sobre" role="tab" aria-selected="false" aria-controls="sec-sobre" data-tab="sobre">Como funciona</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- AUDITORIA -->
+  <section id="sec-auditoria" role="tabpanel" aria-labelledby="tab-auditoria" class="grid">
+    <div class="panel">
+      <h2>Cadastro do cliente</h2>
+      <p class="lead">Cole as linhas do cadastro, copiadas do Excel ou do sistema, uma por serviço. Colunas na ordem: <strong>Serviço · Item LC 116 · NBS · cClassTrib · CST · cAtivSN</strong> (o cAtivSN só é necessário para o Simples). Separe por tabulação ou ponto e vírgula.</p>
+      <div class="grid">
+        <label for="audInput">Linhas do cadastro <span class="hint">O exemplo abaixo tem erros de propósito.</span>
+          <textarea id="audInput" spellcheck="false"></textarea>
+        </label>
+        <div class="cols">
+          <label for="audRegime">Regime do cliente
+            <select id="audRegime"><option value="geral">Regime geral (Lucro Presumido/Real)</option><option value="simples">Simples Nacional</option></select>
+          </label>
+          <label for="audDoc">Documento emitido
+            <select id="audDoc"><option>NFS-e</option><option>NF-e</option><option>NFC-e</option></select>
+          </label>
+        </div>
+        <div class="btns">
+          <button class="btn" id="audRun" type="button">Conferir cadastro</button>
+          <button class="btn sec" id="audExemplo" type="button">Carregar exemplo</button>
+          <button class="btn sec" id="audToSim" type="button">Levar serviços ao simulador</button>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="head" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
+        <h2>Resultado</h2>
+        <button class="btn sec" id="audCopy" type="button">Copiar relatório</button>
+      </div>
+      <p class="hint" id="audCopyMsg" aria-live="polite"></p>
+      <div class="chips" id="audChips"></div>
+      <div class="res" id="audRes" style="margin-top:12px"></div>
+    </div>
+  </section>
+
+  <!-- SIMULADOR -->
+  <section id="sec-simulador" role="tabpanel" aria-labelledby="tab-simulador" class="grid hidden">
+    <div class="panel">
+      <h2>Parâmetros</h2>
+      <p class="lead">Mesma fórmula do motor oficial: alíquota efetiva = alíquota × (1 − redução da cClassTrib); tributo = base × alíquota efetiva. Arredondamento bancário (meio para o par), como na calculadora da Receita.</p>
+      <div class="cols">
+        <label for="simRegime">Regime
+          <select id="simRegime"><option value="geral">Regime geral (Presumido/Real ou Simples híbrido)</option><option value="simples">Simples Nacional (CBS/IBS dentro do DAS)</option></select>
+        </label>
+        <label for="simAno">Ano do fato gerador
+          <select id="simAno"><option>2026</option><option selected>2027</option><option>2028</option><option>2029</option><option>2030</option><option>2031</option><option>2032</option><option>2033</option></select>
+        </label>
+      </div>
+      <div id="parGeral" class="cols" style="margin-top:12px">
+        <label for="pCbs">CBS (%)<input id="pCbs" type="number" step="0.01" inputmode="decimal"><span class="hint" id="pCbsHint"></span></label>
+        <label for="pIbsUf">IBS estadual (%)<input id="pIbsUf" type="number" step="0.01" inputmode="decimal"></label>
+        <label for="pIbsMun">IBS municipal (%)<input id="pIbsMun" type="number" step="0.01" inputmode="decimal"></label>
+        <label for="pIss">ISS sobre o serviço (%)<input id="pIss" type="number" step="0.01" inputmode="decimal" value="5"><span class="hint">Sai da base da CBS/IBS até 2032, como na base unificada oficial.</span></label>
+      </div>
+      <div id="parSimples" class="cols hidden" style="margin-top:12px">
+        <label for="snAliq">Alíquota efetiva do DAS (%)<input id="snAliq" type="number" step="0.01" inputmode="decimal" value="6"><span class="hint">Do PGDAS-D do cliente.</span></label>
+        <label for="snPartCbs">Parte da CBS no DAS (%)<input id="snPartCbs" type="number" step="0.01" inputmode="decimal" value="15.60"><span class="hint">Estimativa: PIS + Cofins do Anexo III, 1ª faixa.</span></label>
+        <label for="snPartIbs">Parte do IBS no DAS (%)<input id="snPartIbs" type="number" step="0.01" inputmode="decimal" value="33.50"><span class="hint">Estimativa: ISS do Anexo III, 1ª faixa.</span></label>
+        <label>Alíquotas que vão para a calculadora<span class="mono" id="snDerivadas" style="font-size:14px;color:var(--tinta);font-weight:500"></span><span class="hint">pCBSSN e pIBSSN. A partir da Release 16 virão prontas do PGDAS-D.</span></label>
+      </div>
+      <p class="note" id="simNota" style="margin:12px 0 0"></p>
+    </div>
+
+    <div class="panel">
+      <h2>Serviços do cliente</h2>
+      <p class="lead">Informe o faturamento mensal de cada serviço e a cClassTrib que ele usa.</p>
+      <div class="tablewrap">
+        <table id="simTable">
+          <thead><tr><th>Serviço</th><th>cClassTrib</th><th class="num">Faturamento mensal (R$)</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="btns" style="margin-top:10px"><button class="btn sec" id="simAdd" type="button">Adicionar serviço</button></div>
+    </div>
+
+    <div class="panel">
+      <h2>Resultado mensal</h2>
+      <div class="tiles" id="simTiles" style="margin:10px 0 14px"></div>
+      <div class="tablewrap"><table id="simRes"></table></div>
+      <div id="simMem" style="margin-top:12px;display:grid;gap:6px"></div>
+    </div>
+  </section>
+
+  <!-- SOBRE -->
+  <section id="sec-sobre" role="tabpanel" aria-labelledby="tab-sobre" class="grid hidden">
+    <div class="panel">
+      <h2>De onde vêm os dados</h2>
+      <p class="lead" id="sobreVersao"></p>
+      <div class="grid" style="max-width:72ch">
+        <p style="margin:0"><span class="tag">Auditoria</span><br>Cada linha passa por cinco conferências: a NBS existe e está vigente; a cClassTrib existe para CBS/IBS; o CST corresponde à cClassTrib; o trio item da LC 116 + NBS + cClassTrib está na correlação oficial usada na NFS-e; e, nas reduções por anexo, a NBS está entre as listadas na lei. No Simples, também confere o tipo de receita bruta e o código de atividade.</p>
+        <p style="margin:0"><span class="tag">Regime geral</span><br>Alíquota efetiva = alíquota nominal × (1 − redução). Tributo = base × alíquota efetiva. A base desconta o ISS até 2032 e PIS/Cofins só em 2026. Em 2026 valem as alíquotas de teste fixadas em lei (CBS 0,9% e IBS 0,1%). De 2027 em diante a alíquota precisa ser informada; a CBS de 2027 ainda é estimativa.</p>
+        <p style="margin:0"><span class="tag">Simples Nacional</span><br>Tributo = faturamento × parte tributada do tipo de receita × alíquota efetiva do Simples para a CBS ou o IBS. A calculadora oficial não calcula a alíquota efetiva: ela vem do PGDAS-D. Aqui ela é estimada pela partilha do DAS, que você pode ajustar.</p>
+        <p style="margin:0"><span class="tag">Limites</span><br>Não simula alíquotas fixas, uniformes ou setoriais, Imposto Seletivo, créditos nem compras governamentais. É uma ferramenta de apoio: confira sempre os casos sensíveis na legislação.</p>
+        <p style="margin:0">Repositórios oficiais: <a href="https://github.com/ReceitaFederal/calculadora-rtc-regime-regular" style="color:var(--dourado)">calculadora-rtc-regime-regular</a> e <a href="https://github.com/ReceitaFederal/calculadora-rtc-simples-nacional" style="color:var(--dourado)">calculadora-rtc-simples-nacional</a> (licença MIT).</p>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>Verçosa Contabilidade · Inteligência tributária para a saúde</footer>
+
+<script>
+// Núcleo de cálculo e validação — reproduz as fórmulas da Calculadora de Tributos oficial
+// (regime geral: TRATAMENTO_TRIBUTARIO; Simples: SimplesNacionalCalculoService),
+// com arredondamento HALF_EVEN: 8 casas nos passos internos e 2 casas no valor final.
+(function (root) {
+  function roundHalfEven(x, d) {
+    const f = Math.pow(10, d);
+    const s = Number((x * f).toFixed(6));
+    const fl = Math.floor(s);
+    const diff = Number((s - fl).toFixed(6));
+    let r;
+    if (diff > 0.5) r = fl + 1;
+    else if (diff < 0.5) r = fl;
+    else r = (fl % 2 === 0) ? fl : fl + 1;
+    return r / f;
+  }
+  const r8 = (x) => roundHalfEven(x, 8);
+  const r2 = (x) => roundHalfEven(x, 2);
+
+  function normNbs(s) { return String(s || '').replace(/\D/g, ''); }
+  function fmtNbs(n) { n = normNbs(n); return n.length === 9 ? `${n[0]}.${n.slice(1, 5)}.${n.slice(5, 7)}.${n.slice(7, 9)}` : n; }
+  function normCct(s) { const d = String(s || '').replace(/\D/g, ''); return d ? d.padStart(6, '0') : ''; }
+  function normCst(s) { const d = String(s || '').replace(/\D/g, ''); return d ? d.padStart(3, '0') : ''; }
+  function normLc(s) {
+    const t = String(s || '').trim().replace(',', '.');
+    if (!t) return '';
+    const m = t.match(/^(\d{1,2})(?:\.(\d{1,2}))?$/);
+    if (!m) return t;
+    return m[2] ? `${Number(m[1])}.${m[2].padStart(2, '0')}` : String(Number(m[1]));
+  }
+
+  function buildIndex(D) {
+    const ct = new Map();
+    D.ct.forEach(([cd, cst, desc, tipo, tprbsn, red, fund, nom]) => ct.set(cd, { cd, cst, desc, tipo, tprbsn, red, fund, nom }));
+    const nbs = new Map(D.nbs.map(([cd, desc]) => [cd, desc]));
+    const lc = new Map(D.lc.map(([cd, desc]) => [cd, desc]));
+    const corrByLcNbs = new Map();
+    const corrByNbs = new Map();
+    D.corr.forEach(([l, n, c, iop]) => {
+      const k = l + '|' + n;
+      if (!corrByLcNbs.has(k)) corrByLcNbs.set(k, new Set());
+      corrByLcNbs.get(k).add(c);
+      if (!corrByNbs.has(n)) corrByNbs.set(n, new Map());
+      const m = corrByNbs.get(n); if (!m.has(c)) m.set(c, new Set()); m.get(c).add(l);
+    });
+    const corrLcs = new Set(D.corr.map((r) => r[0]));
+    const aplByCct = new Map();
+    D.apl.forEach(([n, c]) => { if (!aplByCct.has(c)) aplByCct.set(c, new Set()); aplByCct.get(c).add(n); });
+    const ativ = new Map(D.ativ.map(([cd, desc, anexo, fr, nt, docs]) => [cd, { cd, desc, anexo, fr, nt, docs: docs ? docs.split(',') : null }]));
+    const trbs = new Map(D.trbs.map(([cd, desc, fator, pend]) => [cd, { cd, desc, fator, pend }]));
+    return { ct, nbs, lc, corrByLcNbs, corrByNbs, corrLcs, aplByCct, ativ, trbs, docsn: D.docsn };
+  }
+
+  // Auditoria de uma linha do cadastro. Retorna {status:'ok'|'alerta'|'erro', checks:[{nivel,msg}], sugestao}
+  function auditar(IX, row, opts) {
+    const checks = [];
+    const add = (nivel, msg) => checks.push({ nivel, msg });
+    const n = normNbs(row.nbs), c = normCct(row.cct), cst = normCst(row.cst), l = normLc(row.lc);
+    let sugestao = '';
+    if (!n) add('erro', 'NBS não informada.');
+    else if (n.length !== 9) add('erro', `NBS "${row.nbs}" não tem 9 dígitos.`);
+    else if (!IX.nbs.has(n)) add('erro', `NBS ${fmtNbs(n)} não existe na tabela oficial vigente em 2027.`);
+    else add('ok', `NBS ${fmtNbs(n)}: ${IX.nbs.get(n)}.`);
+
+    const t = c ? IX.ct.get(c) : null;
+    if (!c) add('erro', 'cClassTrib não informada.');
+    else if (!t) add('erro', `cClassTrib ${c} não existe (ou não está vigente em 2027) para CBS/IBS.`);
+    else add('ok', `cClassTrib ${c}: ${t.desc} (redução de ${t.red}%, ${t.fund}).`);
+
+    if (t) {
+      if (!cst) add('alerta', `CST não informado. Para a cClassTrib ${c}, o CST é ${t.cst}.`);
+      else if (cst !== t.cst) add('erro', `CST ${cst} não corresponde à cClassTrib ${c}. O CST correto é ${t.cst}.`);
+      else add('ok', `CST ${cst} confere com a cClassTrib.`);
+    }
+
+    if (l) {
+      if (!IX.lc.has(l)) add('erro', `Item ${l} não existe na lista da LC 116.`);
+      else if (n && IX.nbs.has(n)) {
+        const k = l + '|' + n;
+        const perm = IX.corrByLcNbs.get(k);
+        if (!perm) {
+          const viaNbs = IX.corrByNbs.get(n);
+          const lcs = viaNbs ? [...new Set([...viaNbs.values()].flatMap((s) => [...s]))].slice(0, 6) : [];
+          add('erro', `A NBS ${fmtNbs(n)} não está correlacionada ao item ${l} da LC 116 na tabela oficial da NFS-e.` + (lcs.length ? ` Itens aceitos para esta NBS: ${lcs.join(', ')}.` : ''));
+        } else if (c && !perm.has(c)) {
+          sugestao = [...perm].join(' ou ');
+          add('erro', `Para o item ${l} com a NBS ${fmtNbs(n)}, a tabela oficial aceita a cClassTrib ${sugestao}, não ${c}.`);
+        } else if (c) add('ok', `Item ${l} + NBS + cClassTrib batem com a correlação oficial da NFS-e.`);
+      }
+    } else if (n && IX.nbs.has(n) && c) {
+      const viaNbs = IX.corrByNbs.get(n);
+      if (viaNbs && !viaNbs.has(c)) {
+        sugestao = [...viaNbs.keys()].join(' ou ');
+        add('alerta', `Na correlação oficial, a NBS ${fmtNbs(n)} aparece com a cClassTrib ${sugestao}. Informe o item da LC 116 para uma conferência completa.`);
+      }
+    }
+
+    if (t && n && /^(200|515)$/.test(t.cst) && IX.aplByCct.has(c) && IX.aplByCct.get(c).size > 1 && !IX.aplByCct.get(c).has(n)) {
+      const lista = IX.aplByCct.get(c);
+      const prefixOk = [...lista].some((p) => n.startsWith(p));
+      if (!prefixOk) add('erro', `A cClassTrib ${c} só se aplica às NBS listadas no anexo da lei, e a ${fmtNbs(n)} não está entre elas.`);
+    }
+
+    if (opts && opts.regime === 'simples' && t) {
+      const tr = IX.trbs.get(t.tprbsn);
+      if (t.tprbsn === 9) add('erro', `A cClassTrib ${c} é incompatível com o Simples Nacional (tpRBSN 9).`);
+      else if (tr) add('ok', `Simples: tipo de receita bruta ${t.tprbsn} – ${tr.desc} (${Math.round(tr.fator * 100)}% da receita tributada).`);
+      const a = String(row.cativ || '').replace(/\D/g, '');
+      if (!a) add('alerta', 'Simples: código de atividade (cAtivSN) não informado. Sem ele a calculadora não calcula o item.');
+      else {
+        const at = IX.ativ.get(a.padStart(2, '0'));
+        const doc = opts.doc || 'NFS-e';
+        if (!at) add('erro', `Simples: cAtivSN ${a} não existe.`);
+        else if (at.docs && !at.docs.includes(doc)) add('erro', `Simples: a atividade ${at.cd} não é aceita em ${doc} (só em ${at.docs.join(', ')}).`);
+        else add('ok', `Simples: atividade ${at.cd} – ${at.desc} (Anexo ${at.anexo}${at.fr ? ' ou ' + at.fr + ' pelo Fator R' : ''}).`);
+      }
+    }
+    const status = checks.some((x) => x.nivel === 'erro') ? 'erro' : checks.some((x) => x.nivel === 'alerta') ? 'alerta' : 'ok';
+    return { status, checks, sugestao };
+  }
+
+  // Regime geral: aliquotaEfetiva = aliquota × (1 − redução); tributo = base × aliquotaEfetiva / 100
+  function calcRegimeGeral(t, base, aliq) {
+    const red = (t.tipo === 'Padrão' || t.tipo === 'Sem alíquota') ? (t.red || 0) / 100 : null;
+    if (red === null) return { simulado: false, motivo: `Tipo de alíquota "${t.tipo}" não é simulado aqui.` };
+    const sem = t.tipo === 'Sem alíquota';
+    const out = { simulado: true, base: r2(base), itens: {} };
+    [['cbs', 'CBS'], ['ibsUf', 'IBS estadual'], ['ibsMun', 'IBS municipal']].forEach(([k, nome]) => {
+      const p = sem ? 0 : aliq[k];
+      const pEf = r8(r8(p * r8(1 - red)));
+      const v = r8(base * r8(pEf / 100));
+      out.itens[k] = { nome, p, pEf: roundHalfEven(pEf, 4), v: r2(v) };
+    });
+    out.total = r2(out.itens.cbs.v + out.itens.ibsUf.v + out.itens.ibsMun.v);
+    out.red = sem ? 0 : t.red;
+    return out;
+  }
+
+  // Simples: vRBSNitem × fatorReceita × (alíquota / 100)
+  function calcSimples(IX, t, base, pIBSSN, pCBSSN) {
+    const tr = IX.trbs.get(t.tprbsn) || { fator: 0, desc: 'Desconhecido', pend: 0 };
+    const compoe = t.tprbsn !== 0;
+    const vRB = compoe ? r8(base) : 0;
+    const vt = (p) => (p == null || tr.fator === 0) ? 0 : r8(r8(vRB * tr.fator) * r8(p / 100));
+    const ibs = vt(pIBSSN), cbs = vt(pCBSSN);
+    const pend = !!tr.pend;
+    return {
+      tpRBSN: t.tprbsn, tpDesc: tr.desc, fator: tr.fator, vBC: r2(r8(vRB * tr.fator)),
+      ibs: pend ? 0 : r2(ibs), cbs: pend ? 0 : r2(cbs),
+      ibsPend: pend ? r2(ibs) : 0, cbsPend: pend ? r2(cbs) : 0,
+      total: pend ? 0 : r2(ibs + cbs),
+    };
+  }
+
+  const api = { roundHalfEven, normNbs, fmtNbs, normCct, normCst, normLc, buildIndex, auditar, calcRegimeGeral, calcSimples };
+  if (typeof module !== 'undefined') module.exports = api; else root.Calc = api;
+})(this);
+
+</script>
+<script>
+(function(){
+const $ = (id) => document.getElementById(id);
+const fmtBRL = new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});
+const fmtPct = (v,d=2) => v.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:4}) + '%';
+const fmtCarga = (v) => v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '%';
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let IX = null;
+
+const EXEMPLO = [
+  'Consulta odontológica;4.12;1.2301.23.00;200029;200;09',
+  'Implante dentário;4.12;1.2301.23.00;000001;000;09',
+  'Fisioterapia;4.08;1.2301.92.00;200029;200;09',
+  'Consulta médica;4.01;1.2301.21.00;200029;200;09',
+  'Psicologia;4.16;123019800;200029;000;09',
+  'Harmonização facial;4.12;1.2301.99.00;200029;200;09',
+].join('\n');
+
+// Abas
+document.querySelectorAll('nav.tabs button').forEach((b) => b.addEventListener('click', () => abrir(b.dataset.tab)));
+function abrir(t){
+  document.querySelectorAll('nav.tabs button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
+  ['auditoria','simulador','sobre'].forEach((s) => $('sec-'+s).classList.toggle('hidden', s !== t));
+}
+
+// ---------- Auditoria ----------
+function lerLinhas(txt){
+  return txt.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => {
+    const p = l.includes('\t') ? l.split('\t') : l.split(';');
+    const [servico, lc, nbs, cct, cst, cativ] = p.map((x) => (x || '').trim());
+    return { servico, lc, nbs, cct, cst, cativ };
+  }).filter((r) => !/^servi[cç]o$/i.test(r.servico));
+}
+let ultimaAuditoria = [];
+function auditar(){
+  const linhas = lerLinhas($('audInput').value);
+  const opts = { regime: $('audRegime').value, doc: $('audDoc').value };
+  ultimaAuditoria = linhas.map((r) => ({ r, a: Calc.auditar(IX, r, opts) }));
+  const cont = { ok:0, alerta:0, erro:0 };
+  ultimaAuditoria.forEach(({a}) => cont[a.status]++);
+  $('audChips').innerHTML = ultimaAuditoria.length
+    ? `<span class="chip erro">${cont.erro} com erro</span><span class="chip alerta">${cont.alerta} com alerta</span><span class="chip ok">${cont.ok} corretos</span>`
+    : '<span class="hint">Cole ao menos uma linha para conferir.</span>';
+  const ic = { ok:'✓', alerta:'!', erro:'✕' };
+  const rot = { ok:'Correto', alerta:'Revisar', erro:'Corrigir' };
+  $('audRes').innerHTML = ultimaAuditoria.map(({r,a}) => `
+    <article class="card ${a.status}">
+      <div class="head"><strong>${esc(r.servico || '(sem nome)')}</strong><span class="chip ${a.status}">${rot[a.status]}</span></div>
+      <div class="codes">LC ${esc(r.lc || '—')} · NBS ${esc(r.nbs || '—')} · cClassTrib ${esc(r.cct || '—')} · CST ${esc(r.cst || '—')}${opts.regime === 'simples' ? ' · cAtivSN ' + esc(r.cativ || '—') : ''}</div>
+      <ul>${a.checks.map((c) => `<li class="${c.nivel}"><span class="ic" aria-hidden="true">${ic[c.nivel]}</span><span>${esc(c.msg)}</span></li>`).join('')}</ul>
+    </article>`).join('');
+}
+$('audRun').addEventListener('click', auditar);
+$('audRegime').addEventListener('change', auditar);
+$('audDoc').addEventListener('change', auditar);
+$('audExemplo').addEventListener('click', () => { $('audInput').value = EXEMPLO; auditar(); });
+$('audCopy').addEventListener('click', async () => {
+  const txt = ultimaAuditoria.map(({r,a}) => `${r.servico} [${a.status.toUpperCase()}]\n` + a.checks.filter((c) => c.nivel !== 'ok').map((c) => '  - ' + c.msg).join('\n')).join('\n\n');
+  try { await navigator.clipboard.writeText(txt || 'Sem resultados.'); $('audCopyMsg').textContent = 'Relatório copiado.'; }
+  catch(e){ $('audCopyMsg').textContent = 'Não foi possível copiar automaticamente. Selecione o texto dos cartões e copie.'; }
+});
+$('audToSim').addEventListener('click', () => {
+  const linhas = lerLinhas($('audInput').value);
+  if (!linhas.length) return;
+  servicos = linhas.map((r) => ({ nome: r.servico, cct: Calc.normCct(r.cct), valor: 10000 }));
+  $('simRegime').value = $('audRegime').value;
+  desenharServicos(); aplicarAno(false); simular(); abrir('simulador');
+});
+
+// ---------- Simulador ----------
+let servicos = [
+  { nome:'Consultas odontológicas', cct:'200029', valor:60000 },
+  { nome:'Procedimentos estéticos (sem redução)', cct:'000001', valor:15000 },
+  { nome:'Fisioterapia', cct:'200029', valor:12000 },
+];
+const ALIQ = { '2026':{cbs:0.9,ibsUf:0.1,ibsMun:0,fixo:true}, 'outro':{cbs:8.8,ibsUf:0.05,ibsMun:0.05,fixo:false} };
+function aplicarAno(reset=true){
+  const ano = $('simAno').value;
+  const a = ano === '2026' ? ALIQ['2026'] : ALIQ.outro;
+  if (reset || ano === '2026'){ $('pCbs').value = a.cbs; $('pIbsUf').value = a.ibsUf; $('pIbsMun').value = a.ibsMun; }
+  ['pCbs','pIbsUf','pIbsMun'].forEach((id) => $(id).disabled = a.fixo);
+  $('pCbsHint').textContent = ano === '2026' ? 'Alíquota de teste fixada em lei.' : (ano <= '2028' ? 'Estimativa: a lei ainda não fixou a CBS de ' + ano + '.' : 'Informe a alíquota do ano.');
+}
+function desenharServicos(){
+  const tb = $('simTable').querySelector('tbody');
+  const opts = (sel) => IX ? [...IX.ct.values()].filter((t) => t.tipo === 'Padrão' || t.tipo === 'Sem alíquota')
+     .map((t) => `<option value="${t.cd}" ${t.cd === sel ? 'selected' : ''}>${t.cd} · ${esc(t.desc.slice(0,70))}${t.red ? ' (−' + t.red + '%)' : ''}</option>`).join('') : '';
+  tb.innerHTML = servicos.map((s,i) => `<tr>
+    <td><input aria-label="Serviço ${i+1}" data-i="${i}" data-f="nome" value="${esc(s.nome)}"></td>
+    <td><select aria-label="cClassTrib do serviço ${i+1}" data-i="${i}" data-f="cct" style="min-width:240px">${IX && IX.ct.has(s.cct) ? '' : `<option value="${esc(s.cct)}" selected>${esc(s.cct || 'escolha')} · não encontrada</option>`}${opts(s.cct)}</select></td>
+    <td class="num"><input aria-label="Faturamento do serviço ${i+1}" data-i="${i}" data-f="valor" type="number" step="0.01" inputmode="decimal" value="${s.valor}" style="text-align:right"></td>
+    <td><button class="del" type="button" data-del="${i}" aria-label="Remover serviço ${i+1}">×</button></td></tr>`).join('');
+  tb.querySelectorAll('[data-f]').forEach((el) => el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', (e) => {
+    const s = servicos[+e.target.dataset.i]; const f = e.target.dataset.f;
+    s[f] = f === 'valor' ? (parseFloat(e.target.value) || 0) : e.target.value; simular();
+  }));
+  tb.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => { servicos.splice(+b.dataset.del,1); desenharServicos(); simular(); }));
+}
+$('simAdd').addEventListener('click', () => { servicos.push({ nome:'Novo serviço', cct:'200029', valor:0 }); desenharServicos(); simular(); });
+$('simRegime').addEventListener('change', simular);
+$('simAno').addEventListener('change', () => { aplicarAno(true); simular(); });
+['pCbs','pIbsUf','pIbsMun','pIss','snAliq','snPartCbs','snPartIbs'].forEach((id) => $(id).addEventListener('input', simular));
+
+function simular(){
+  if (!IX) return;
+  const regime = $('simRegime').value, ano = +$('simAno').value;
+  $('parGeral').classList.toggle('hidden', regime !== 'geral');
+  $('parSimples').classList.toggle('hidden', regime !== 'simples');
+  const num = (id) => parseFloat($(id).value) || 0;
+  let linhas = [], tot = { fat:0, cbs:0, ibs:0, total:0, pend:0 };
+  const mem = [];
+  if (regime === 'geral'){
+    const aliq = { cbs:num('pCbs'), ibsUf:num('pIbsUf'), ibsMun:num('pIbsMun') };
+    const iss = ano <= 2032 ? num('pIss') : 0;
+    $('simNota').textContent = ano === 2026
+      ? 'Em 2026 o cálculo é de teste: os valores são informativos e compensáveis com PIS/Cofins.'
+      : `Base = faturamento − ISS (${fmtPct(iss)})${ano > 2032 ? '' : ', até 2032'}. ${ano <= 2028 ? 'A CBS de ' + ano + ' é estimativa; ajuste quando a alíquota for publicada.' : ''}`;
+    linhas = servicos.map((s) => {
+      const t = IX.ct.get(s.cct);
+      if (!t) return { s, erro:'cClassTrib não encontrada.' };
+      const base = Calc.roundHalfEven(s.valor * (1 - iss/100), 2);
+      const r = Calc.calcRegimeGeral(t, base, aliq);
+      if (!r.simulado) return { s, erro:r.motivo };
+      tot.fat += s.valor; tot.cbs += r.itens.cbs.v; tot.ibs += r.itens.ibsUf.v + r.itens.ibsMun.v; tot.total += r.total;
+      mem.push(`<details><summary>${esc(s.nome)}: memória de cálculo</summary><p style="margin:6px 0 0">Operação com enquadramento legal em ${esc(t.fund)} (cClassTrib ${t.cd}, CST ${t.cst}). Base de cálculo de ${fmtBRL.format(base)}${iss ? ' (faturamento de ' + fmtBRL.format(s.valor) + ' menos ISS de ' + fmtPct(iss) + ')' : ''}. Redução de ${r.red}% nas alíquotas. CBS: ${fmtPct(r.itens.cbs.p)} → efetiva ${fmtPct(r.itens.cbs.pEf)} = ${fmtBRL.format(r.itens.cbs.v)}. IBS estadual: ${fmtPct(r.itens.ibsUf.p)} → ${fmtPct(r.itens.ibsUf.pEf)} = ${fmtBRL.format(r.itens.ibsUf.v)}. IBS municipal: ${fmtPct(r.itens.ibsMun.p)} → ${fmtPct(r.itens.ibsMun.pEf)} = ${fmtBRL.format(r.itens.ibsMun.v)}.</p></details>`);
+      return { s, t, base, r };
+    });
+    $('simRes').innerHTML = `<thead><tr><th>Serviço</th><th>cClassTrib</th><th class="num">Redução</th><th class="num">Base</th><th class="num">CBS</th><th class="num">IBS UF</th><th class="num">IBS Mun</th><th class="num">Total</th><th class="num">Carga sobre o faturamento</th></tr></thead>
+      <tbody>${linhas.map((l) => l.erro ? `<tr><td>${esc(l.s.nome)}</td><td class="mono">${esc(l.s.cct)}</td><td colspan="7" style="color:var(--erro)">${esc(l.erro)}</td></tr>` :
+      `<tr><td>${esc(l.s.nome)}</td><td class="mono">${l.t.cd}</td><td class="num">${l.r.red}%</td><td class="num">${fmtBRL.format(l.base)}</td><td class="num">${fmtBRL.format(l.r.itens.cbs.v)}</td><td class="num">${fmtBRL.format(l.r.itens.ibsUf.v)}</td><td class="num">${fmtBRL.format(l.r.itens.ibsMun.v)}</td><td class="num">${fmtBRL.format(l.r.total)}</td><td class="num">${l.s.valor ? fmtCarga(l.r.total / l.s.valor * 100) : '—'}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td colspan="3">Total</td><td class="num"></td><td class="num">${fmtBRL.format(tot.cbs)}</td><td class="num" colspan="2">${fmtBRL.format(tot.ibs)}</td><td class="num">${fmtBRL.format(tot.total)}</td><td class="num">${tot.fat ? fmtCarga(tot.total / tot.fat * 100) : '—'}</td></tr></tfoot>`;
+  } else {
+    const pCBS = Calc.roundHalfEven(num('snAliq') * num('snPartCbs') / 100, 4);
+    const pIBS = Calc.roundHalfEven(num('snAliq') * num('snPartIbs') / 100, 4);
+    $('snDerivadas').textContent = `CBS ${fmtPct(pCBS,2)} · IBS ${fmtPct(pIBS,2)}`;
+    $('simNota').textContent = 'No Simples, a CBS e o IBS ficam dentro do DAS: este cálculo mostra quanto do DAS corresponde a eles. O total do DAS não muda.';
+    linhas = servicos.map((s) => {
+      const t = IX.ct.get(s.cct);
+      if (!t) return { s, erro:'cClassTrib não encontrada.' };
+      if (t.tprbsn === 9) return { s, erro:'cClassTrib incompatível com o Simples Nacional.' };
+      const r = Calc.calcSimples(IX, t, s.valor, pIBS, pCBS);
+      tot.fat += s.valor; tot.cbs += r.cbs; tot.ibs += r.ibs; tot.total += r.total; tot.pend += r.cbsPend + r.ibsPend;
+      return { s, t, r };
+    });
+    $('simRes').innerHTML = `<thead><tr><th>Serviço</th><th>cClassTrib</th><th>Tipo de receita</th><th class="num">Base</th><th class="num">CBS</th><th class="num">IBS</th><th class="num">Total no DAS</th></tr></thead>
+      <tbody>${linhas.map((l) => l.erro ? `<tr><td>${esc(l.s.nome)}</td><td class="mono">${esc(l.s.cct)}</td><td colspan="5" style="color:var(--erro)">${esc(l.erro)}</td></tr>` :
+      `<tr><td>${esc(l.s.nome)}</td><td class="mono">${l.t.cd}</td><td>${l.r.tpRBSN} – ${esc(l.r.tpDesc)}</td><td class="num">${fmtBRL.format(l.r.vBC)}</td><td class="num">${fmtBRL.format(l.r.cbs)}</td><td class="num">${fmtBRL.format(l.r.ibs)}</td><td class="num">${fmtBRL.format(l.r.total)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td colspan="4">Total</td><td class="num">${fmtBRL.format(tot.cbs)}</td><td class="num">${fmtBRL.format(tot.ibs)}</td><td class="num">${fmtBRL.format(tot.total)}</td></tr></tfoot>`;
+    mem.push(`<details><summary>Memória de cálculo</summary><p style="margin:6px 0 0">Tributo = faturamento × parte tributada do tipo de receita × alíquota efetiva. Alíquotas efetivas usadas: CBS ${fmtPct(pCBS)} e IBS ${fmtPct(pIBS)} (alíquota do DAS de ${fmtPct(num('snAliq'))} × partilha). No Simples a redução de 60% da saúde não se aplica: o que vale é a alíquota do DAS.</p></details>`);
+  }
+  $('simMem').innerHTML = mem.join('');
+  $('simTiles').innerHTML = `
+    <div class="tile"><div class="k">Faturamento simulado</div><div class="v">${fmtBRL.format(tot.fat)}</div><div class="s">por mês</div></div>
+    <div class="tile"><div class="k">CBS</div><div class="v">${fmtBRL.format(tot.cbs)}</div><div class="s">${tot.fat ? fmtCarga(tot.cbs/tot.fat*100) : '—'} do faturamento</div></div>
+    <div class="tile"><div class="k">IBS</div><div class="v">${fmtBRL.format(tot.ibs)}</div><div class="s">${tot.fat ? fmtCarga(tot.ibs/tot.fat*100) : '—'} do faturamento</div></div>
+    <div class="tile"><div class="k">CBS + IBS</div><div class="v">${fmtBRL.format(tot.total)}</div><div class="s">${tot.fat ? fmtCarga(tot.total/tot.fat*100) : '—'} do faturamento${regime === 'simples' ? ', dentro do DAS' : ''}</div></div>`;
+}
+
+// Carga dos dados oficiais (protegidos: exigem o login da Consulta)
+function carregarOficiais(){
+  let token = null;
+  try { const s = JSON.parse(sessionStorage.getItem('cnae_sess')); if (s && s.token && s.expiry > Date.now()) token = s.token; } catch(e) {}
+  if (!token) return Promise.reject(new Error('auth'));
+  return fetch('/api/oficiais', { headers: { Authorization: 'Bearer ' + token } }).then((r) => {
+    if (r.status === 401) throw new Error('auth');
+    if (!r.ok) throw new Error('falha');
+    return r.json();
+  });
+}
+carregarOficiais().then((D) => {
+  IX = Calc.buildIndex(D);
+  const [ver, data] = D.v;
+  const dt = data.slice(0,10).split('-').reverse().join('/');
+  $('sobreVersao').textContent = `Tabelas do banco oficial da Calculadora de Tributos da Receita Federal, versão ${ver} de ${dt}, com os códigos vigentes em 01/01/2027: ${IX.ct.size} cClassTrib de CBS/IBS, ${IX.nbs.size} códigos NBS e ${D.corr.length} correlações entre item da LC 116, NBS e cClassTrib.`;
+  $('audInput').value = EXEMPLO;
+  aplicarAno(true); desenharServicos(); auditar(); simular();
+}).catch((e) => {
+  $('audRes').innerHTML = e && e.message === 'auth'
+    ? '<p class="note">Sua sessão expirou. Saia e entre de novo na Consulta com o seu e-mail.</p>'
+    : '<p class="note">Não foi possível carregar as tabelas oficiais. Recarregue a página.</p>';
+});
+})();
+</script>
+</body>
+</html>
