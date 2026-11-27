@@ -57,6 +57,22 @@ module.exports = async (req, res) => {
     let text = await readBody(req);
     if (typeof text !== 'string') text = Buffer.isBuffer(text) ? text.toString('utf-8') : String(text.csv || '');
     const modo = String((req.query && req.query.modo) || req.headers['x-modo'] || '').toLowerCase();
+    if (modo === 'trocar') {
+      // Troca o e-mail de um aluno mantendo nome, turma e data: corpo "antigo;novo" (um por linha)
+      const atuais = await readAlunos();
+      const feitos = [], erros = [];
+      text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).forEach((l) => {
+        const [a, n] = l.split(/[;\t,]|\s+/).map((x) => (x || '').trim().toLowerCase()).filter(Boolean);
+        if (!a || !n || !/^\S+@\S+\.\S+$/.test(n)) { erros.push(l + ' (formato: antigo;novo)'); return; }
+        if (!atuais[a]) { erros.push(a + ' não está na lista'); return; }
+        atuais[n] = Object.assign({}, atuais[a], atuais[n] || {});
+        delete atuais[a];
+        feitos.push(a + ' → ' + n);
+      });
+      if (!feitos.length) throw new Error(erros.join('; ') || 'Nenhuma troca informada');
+      await writeAlunos(atuais);
+      return res.status(200).json({ ok: true, trocados: feitos, erros, total: Object.keys(atuais).length });
+    }
     if (modo === 'adicionar') {
       // Adiciona e-mails avulsos (um por linha, opcionalmente "e-mail;nome") sem apagar a lista atual
       const atuais = await readAlunos();
@@ -80,6 +96,6 @@ module.exports = async (req, res) => {
     return res.status(200).json({ ok: true, total });
   } catch (e) {
     console.error(e);
-    return res.status(400).json({ erro: 'Erro ao processar CSV: ' + e.message });
+    return res.status(400).json({ erro: (String((req.query && req.query.modo) || req.headers['x-modo'] || '') ? '' : 'Erro ao processar CSV: ') + e.message });
   }
 };

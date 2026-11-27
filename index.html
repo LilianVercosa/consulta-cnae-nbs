@@ -177,6 +177,12 @@ table.ref-table .mono{font-weight:700;color:var(--blue-light);white-space:nowrap
       <div class="admin-panel-title" style="margin-top:16px">➕ Liberar e-mails avulsos</div>
       <textarea id="addEmails" rows="3" placeholder="Um e-mail por linha (pode colocar ;Nome depois)" style="width:100%;padding:9px 12px;border:1.5px solid #d1d5db;border-radius:7px;font-size:.85rem;font-family:inherit;resize:vertical"></textarea>
       <button class="btn-admin-confirm" style="margin-top:6px;width:100%" onclick="addEmails()">Liberar acesso</button>
+      <div class="admin-panel-title" style="margin-top:16px">🔁 Trocar e-mail de aluno</div>
+      <div class="admin-pass-row">
+        <input type="email" id="trocaAntigo" placeholder="E-mail cadastrado">
+        <input type="email" id="trocaNovo" placeholder="E-mail novo">
+      </div>
+      <button class="btn-admin-confirm" style="width:100%" onclick="trocarEmail()">Trocar e-mail</button>
       <div class="csv-hint">Os e-mails entram na lista atual sem apagar ninguém. Atenção: subir um CSV novo substitui a lista inteira.</div>
       <div class="upload-result" id="uploadResult"></div>
     </div>
@@ -469,6 +475,19 @@ function handleCSV(file) {
     document.getElementById('csvFileInput').value = '';
   };
   reader.readAsText(file, 'utf-8');
+}
+
+async function trocarEmail() {
+  if (!adminPassword) { showUploadResult('⚠️ Confirme a senha de administrador primeiro.', true); return; }
+  const a = document.getElementById('trocaAntigo').value.trim().toLowerCase(), n = document.getElementById('trocaNovo').value.trim().toLowerCase();
+  if (!a || !n) { showUploadResult('⚠️ Preencha o e-mail cadastrado e o e-mail novo.', true); return; }
+  showUploadResult('⏳ Trocando…', false);
+  try {
+    const r = await fetch('/api/admin/alunos?modo=trocar', { method:'POST', headers:{ 'x-admin-password': adminPassword, 'x-modo': 'trocar', 'Content-Type':'text/plain; charset=utf-8' }, body: a + ';' + n });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok) { showUploadResult('✅ E-mail trocado: ' + d.trocados.join(', ') + '.', false); document.getElementById('trocaAntigo').value = ''; document.getElementById('trocaNovo').value = ''; }
+    else showUploadResult('❌ ' + (d.erro || 'Erro ao trocar.'), true);
+  } catch(e) { showUploadResult('❌ Erro de conexão.', true); }
 }
 
 async function addEmails() {
